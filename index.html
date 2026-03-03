@@ -5,249 +5,126 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
 <title>ASX RTO Screener</title>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  :root{
-    --bg:#0d1117;--sur:#161b22;--bdr:#30363d;
-    --txt:#e6edf3;--mut:#8b949e;
-    --red:#f85149;--amb:#e3b341;--grn:#3fb950;--blu:#58a6ff;
-    --red-dim:rgba(248,81,73,.15);--amb-dim:rgba(227,179,65,.15);--grn-dim:rgba(63,185,80,.15);
-  }
-  body{background:var(--bg);color:var(--txt);font-family:-apple-system,'Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh;-webkit-text-size-adjust:100%}
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--sur:#161b22;--bdr:#30363d;
+  --txt:#e6edf3;--mut:#8b949e;
+  --red:#f85149;--amb:#e3b341;--grn:#3fb950;--blu:#58a6ff;
+  --red-dim:rgba(248,81,73,.15);--amb-dim:rgba(227,179,65,.15);--grn-dim:rgba(63,185,80,.15);
+}
+body{background:var(--bg);color:var(--txt);font-family:-apple-system,'Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh;-webkit-text-size-adjust:100%}
 
-  /* ── Load screen ── */
-  #load-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:20px;padding:24px;text-align:center}
-  #load-screen h1{font-size:22px;font-weight:600}
+/* Spinner */
+#load-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:16px}
+.spinner{width:36px;height:36px;border:3px solid var(--bdr);border-top-color:var(--blu);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-  .spinner{width:36px;height:36px;border:3px solid var(--bdr);border-top-color:var(--blu);border-radius:50%;animation:spin .8s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
+/* App */
+#app{display:none;flex-direction:column;min-height:100vh}
 
-  #drop-zone{
-    width:min(380px,100%);height:160px;border:2px dashed var(--bdr);border-radius:10px;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
-    cursor:pointer;transition:border-color .2s,background .2s;
-  }
-  #drop-zone:hover,#drop-zone.drag-over{border-color:var(--blu);background:rgba(88,166,255,.05)}
-  #drop-zone svg{opacity:.4}
-  #drop-zone span{color:var(--mut);font-size:13px}
-  #drop-zone strong{color:var(--blu);font-size:15px}
-  #file-input{display:none}
+/* Header */
+#hdr{background:var(--sur);border-bottom:1px solid var(--bdr);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#hdr h1{font-size:15px;font-weight:600;white-space:nowrap}
+.meta{color:var(--mut);font-size:11px;display:flex;gap:10px;flex-wrap:wrap;margin-left:auto}
+.meta span{white-space:nowrap}
 
-  .server-hint{background:var(--sur);border:1px solid var(--bdr);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--mut);max-width:380px;text-align:left;line-height:1.7}
-  .server-hint strong{color:var(--txt);display:block;margin-bottom:4px}
-  .server-hint code{color:var(--grn);font-family:monospace;font-size:11px;display:block;word-break:break-all}
+/* Badges */
+.badges{display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px;background:var(--sur);border-bottom:1px solid var(--bdr)}
+.badge{padding:5px 12px;border-radius:99px;font-size:12px;font-weight:600;cursor:pointer;border-width:1px;border-style:solid;min-height:36px;display:inline-flex;align-items:center;transition:opacity .15s}
+.badge:hover{opacity:.75}
+.badge.active{outline:2px solid var(--blu);outline-offset:1px}
+.b-red{background:var(--red-dim);color:var(--red);border-color:rgba(248,81,73,.3)}
+.b-amb{background:var(--amb-dim);color:var(--amb);border-color:rgba(227,179,65,.3)}
+.b-grn{background:var(--grn-dim);color:var(--grn);border-color:rgba(63,185,80,.3)}
+.b-mut{background:rgba(139,148,158,.1);color:var(--mut);border-color:rgba(139,148,158,.2)}
 
-  /* ── Main app ── */
-  #app{display:none;flex-direction:column;min-height:100vh}
+/* Desktop table */
+#tbl-wrap{padding:16px;overflow-x:auto;flex:1}
+table{width:100%;border-collapse:collapse}
+thead th{background:var(--sur);color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:8px 10px;border-bottom:1px solid var(--bdr);white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0;z-index:1}
+thead th:hover{color:var(--txt)}
+thead th.sort-asc::after{content:" ▲";opacity:.5}
+thead th.sort-desc::after{content:" ▼";opacity:.5}
+th.l{text-align:left} th.r{text-align:right}
+tbody tr{border-bottom:1px solid rgba(48,54,61,.5);transition:background .1s}
+tbody tr:hover{background:rgba(255,255,255,.03)}
+td{padding:8px 10px;vertical-align:middle;white-space:nowrap}
+td.l{text-align:left} td.r{text-align:right}
+td.tk a{color:var(--blu);text-decoration:none;font-weight:600;font-size:13px}
+td.tk a:hover{text-decoration:underline}
+td.co{max-width:180px;overflow:hidden;text-overflow:ellipsis;color:var(--mut);font-size:12px}
+.pos{color:var(--grn)} .neg{color:var(--red)} .neu{color:var(--mut)}
+.tier-badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;min-width:80px;text-align:center}
+.t-red{background:var(--red-dim);color:var(--red)}
+.t-amb{background:var(--amb-dim);color:var(--amb)}
+.t-grn{background:var(--grn-dim);color:var(--grn)}
+#empty{text-align:center;padding:60px 0;color:var(--mut);display:none}
 
-  /* Header */
-  #header{background:var(--sur);border-bottom:1px solid var(--bdr);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  #header h1{font-size:15px;font-weight:600;white-space:nowrap}
-  #header .meta{color:var(--mut);font-size:11px;display:flex;gap:10px;flex-wrap:wrap}
-  #header .meta span{white-space:nowrap}
-  #header .right-group{margin-left:auto;display:flex;gap:8px}
-  #filter-toggle{padding:7px 14px;background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--mut);font-size:12px;cursor:pointer;display:none;min-height:36px;white-space:nowrap}
-  #filter-toggle:hover,#filter-toggle.open{border-color:var(--blu);color:var(--blu)}
+/* Mobile cards */
+#cards{display:none;padding:10px 12px;flex-direction:column;gap:10px;flex:1}
+.card{background:var(--sur);border:1px solid var(--bdr);border-radius:12px;padding:14px}
+.ct{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.ck a{font-size:19px;font-weight:700;color:var(--blu);text-decoration:none;flex:1;line-height:1}
+.cn{font-size:12px;color:var(--mut);margin-bottom:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cd{height:1px;background:var(--bdr);margin:10px 0}
+.cm{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 8px}
+.cml{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;display:block}
+.cmv{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+#empty-c{text-align:center;padding:60px 16px;color:var(--mut);display:none}
 
-  /* Badges row */
-  .badges{display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px;background:var(--sur);border-bottom:1px solid var(--bdr)}
-  .badge{padding:5px 12px;border-radius:99px;font-size:12px;font-weight:600;cursor:pointer;border-width:1px;border-style:solid;min-height:36px;display:inline-flex;align-items:center;transition:opacity .15s}
-  .badge:hover{opacity:.75}
-  .badge.active{outline:2px solid var(--blu);outline-offset:1px}
-  .b-red{background:var(--red-dim);color:var(--red);border-color:rgba(248,81,73,.3)}
-  .b-amb{background:var(--amb-dim);color:var(--amb);border-color:rgba(227,179,65,.3)}
-  .b-grn{background:var(--grn-dim);color:var(--grn);border-color:rgba(63,185,80,.3)}
-  .b-mut{background:rgba(139,148,158,.1);color:var(--mut);border-color:rgba(139,148,158,.2)}
-
-  /* Filter panel */
-  #filters{background:var(--sur);border-bottom:1px solid var(--bdr);padding:14px 16px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;transition:none}
-  #filters.collapsed{display:none}
-  .filter-group{display:flex;flex-direction:column;gap:6px;min-width:130px;flex:1}
-  .filter-group label{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;display:flex;justify-content:space-between}
-  .filter-group label span{color:var(--txt);font-weight:600}
-  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:var(--bdr);border-radius:3px;outline:none;cursor:pointer}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--blu);cursor:pointer}
-  #filter-count{font-size:13px;color:var(--mut);white-space:nowrap;align-self:flex-end}
-  #filter-count strong{color:var(--txt)}
-  #reset-btn{padding:8px 16px;background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--mut);font-size:12px;cursor:pointer;min-height:36px;white-space:nowrap;align-self:flex-end}
-  #reset-btn:hover{border-color:var(--blu);color:var(--blu)}
-
-  /* Lookup */
-  #lookup-bar{background:var(--sur);border-bottom:1px solid var(--bdr);padding:10px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  #lookup-bar label{font-size:12px;color:var(--mut);white-space:nowrap}
-  #lookup-input{padding:8px 12px;background:var(--bg);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;width:100px;text-transform:uppercase;min-height:40px}
-  #lookup-input:focus{outline:none;border-color:var(--blu)}
-  #lookup-btn{padding:8px 16px;background:var(--blu);border:none;border-radius:6px;color:#000;font-size:13px;font-weight:600;cursor:pointer;min-height:40px}
-  #lookup-result{font-size:12px;flex:1;min-width:100%}
-  .lookup-card{background:var(--bg);border:1px solid var(--bdr);border-radius:8px;padding:10px 16px;display:flex;flex-wrap:wrap;gap:6px 20px;align-items:baseline;margin-top:8px}
-  .lookup-card strong{font-size:13px;color:var(--txt);width:100%}
-  .pass{color:var(--grn)} .fail{color:var(--red)} .na{color:var(--mut)}
-
-  /* ── Desktop table ── */
-  #table-container{padding:16px;overflow-x:auto;flex:1}
-  table{width:100%;border-collapse:collapse}
-  thead th{
-    background:var(--sur);color:var(--mut);font-size:11px;text-transform:uppercase;
-    letter-spacing:.05em;padding:8px 10px;border-bottom:1px solid var(--bdr);
-    white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0;z-index:1;
-  }
-  thead th.left{text-align:left} thead th.right{text-align:right}
-  thead th:hover{color:var(--txt)}
-  thead th.sort-asc::after{content:" ▲";opacity:.5}
-  thead th.sort-desc::after{content:" ▼";opacity:.5}
-  tbody tr{border-bottom:1px solid rgba(48,54,61,.5);transition:background .1s}
-  tbody tr:hover{background:rgba(255,255,255,.03)}
-  td{padding:8px 10px;vertical-align:middle;white-space:nowrap}
-  td.left{text-align:left} td.right{text-align:right}
-  td.ticker a{color:var(--blu);text-decoration:none;font-weight:600;font-size:13px}
-  td.ticker a:hover{text-decoration:underline}
-  td.company{max-width:180px;overflow:hidden;text-overflow:ellipsis;color:var(--mut);font-size:12px}
-  td.sector-cell{max-width:120px;overflow:hidden;text-overflow:ellipsis;color:var(--mut);font-size:11px}
-  td.num{font-variant-numeric:tabular-nums}
-  .pos{color:var(--grn)} .neg{color:var(--red)} .neu{color:var(--mut)}
-  .tier-badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;min-width:80px;text-align:center}
-  .t-red{background:var(--red-dim);color:var(--red)}
-  .t-amb{background:var(--amb-dim);color:var(--amb)}
-  .t-grn{background:var(--grn-dim);color:var(--grn)}
-  .t-mut{background:rgba(139,148,158,.1);color:var(--mut)}
-  #empty-msg{text-align:center;padding:60px 0;color:var(--mut);font-size:14px}
-
-  /* ── Mobile cards ── */
-  #cards-container{display:none;padding:10px 12px;flex-direction:column;gap:10px;flex:1}
-  .stock-card{background:var(--sur);border:1px solid var(--bdr);border-radius:12px;padding:14px}
-  .card-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-  .card-ticker{font-size:19px;font-weight:700;color:var(--blu);text-decoration:none;flex:1;line-height:1}
-  .card-score{font-size:11px;color:var(--mut)}
-  .card-company{font-size:12px;color:var(--mut);margin-bottom:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .card-divider{height:1px;background:var(--bdr);margin:10px 0}
-  .card-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 8px}
-  .card-metric{display:flex;flex-direction:column;gap:3px}
-  .card-metric-label{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
-  .card-metric-value{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
-  #empty-cards{text-align:center;padding:60px 16px;color:var(--mut);font-size:14px}
-
-  /* ── Responsive breakpoint ── */
-  @media (max-width:700px){
-    #filter-toggle{display:block}
-    #table-container{display:none}
-    #cards-container{display:flex}
-    #header .meta{gap:8px;font-size:10px}
-    #header h1{font-size:14px}
-    .badges{gap:5px;padding:8px 12px}
-    .badge{font-size:11px;padding:4px 10px;min-height:32px}
-    #lookup-input{flex:1;width:auto;min-width:80px}
-    .card-metrics{grid-template-columns:repeat(2,1fr)}
-  }
+/* Responsive */
+@media(max-width:700px){
+  #tbl-wrap{display:none}
+  #cards{display:flex}
+  .meta{font-size:10px;gap:8px}
+  #hdr h1{font-size:14px}
+  .badges{gap:5px;padding:8px 12px}
+  .badge{font-size:11px;padding:4px 10px;min-height:32px}
+  .cm{grid-template-columns:repeat(2,1fr)}
+}
 </style>
 </head>
 <body>
 
-<!-- ── Load screen ── -->
 <div id="load-screen">
-  <h1>ASX RTO Screener</h1>
-
-  <div id="load-status" style="display:flex;flex-direction:column;align-items:center;gap:12px">
-    <div class="spinner"></div>
-    <p style="color:var(--mut);font-size:13px">Loading screener_output.csv…</p>
-  </div>
-
-  <div id="load-fallback" style="display:none;flex-direction:column;align-items:center;gap:16px;width:100%">
-    <p style="color:var(--mut);font-size:13px;max-width:360px">
-      Could not auto-load the file. Drop it below or tap to browse.
-    </p>
-    <div id="drop-zone">
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
-      </svg>
-      <strong>Drop screener_output.csv here</strong>
-      <span>or tap to browse</span>
-    </div>
-    <div class="server-hint">
-      <strong>For auto-load, run once in Terminal:</strong>
-      <code>cd ~/Desktop/asx-rto-study && python3 -m http.server 8080</code>
-      Then open <code style="color:var(--blu)">http://localhost:8080/dashboard.html</code>
-      <br>On iPhone (same Wi-Fi): replace <code style="color:var(--blu)">localhost</code> with your Mac's IP.
-    </div>
-  </div>
-
-  <input type="file" id="file-input" accept=".csv">
+  <div class="spinner"></div>
+  <p style="color:var(--mut);font-size:13px">Loading…</p>
 </div>
 
-<!-- ── Main app ── -->
 <div id="app">
-  <div id="header">
+  <div id="hdr">
     <h1>ASX RTO Screener</h1>
     <div class="meta">
       <span>Run: <strong id="hdr-date">—</strong></span>
-      <span>Screened: <strong id="hdr-screened">—</strong></span>
-      <span>Flagged: <strong id="hdr-flagged">—</strong></span>
-    </div>
-    <div class="right-group">
-      <button id="filter-toggle" onclick="toggleFilters()">Filters</button>
+      <span>Flagged: <strong id="hdr-n">—</strong></span>
     </div>
   </div>
 
   <div class="badges">
-    <span id="bdg-unexp" class="badge b-red" onclick="filterTier('UNEXPLAINED')"><span id="cnt-unexp">0</span> Unexplained</span>
-    <span id="bdg-uncl"  class="badge b-amb" onclick="filterTier('UNCLEAR')"><span id="cnt-uncl">0</span> Unclear</span>
-    <span id="bdg-expl"  class="badge b-grn" onclick="filterTier('EXPLAINED')"><span id="cnt-expl">0</span> Explained</span>
-    <span id="bdg-flag"  class="badge b-mut" onclick="filterTier('')"><span id="cnt-flag">0</span> All</span>
+    <span id="b-unexp" class="badge b-red" onclick="ft('UNEXPLAINED')"><span id="n-unexp">0</span> Unexplained</span>
+    <span id="b-uncl"  class="badge b-amb" onclick="ft('UNCLEAR')"><span id="n-uncl">0</span> Unclear</span>
+    <span id="b-expl"  class="badge b-grn" onclick="ft('EXPLAINED')"><span id="n-expl">0</span> Explained</span>
+    <span id="b-all"   class="badge b-mut" onclick="ft('')"><span id="n-all">0</span> All</span>
   </div>
 
-  <div id="filters">
-    <div class="filter-group">
-      <label>Min vol ratio <span id="lbl-vol">2.0×</span></label>
-      <input type="range" id="sl-vol" min="0.5" max="10" step="0.1" value="2.0" oninput="onSlider()">
-    </div>
-    <div class="filter-group">
-      <label>Min drift <span id="lbl-drift">5%</span></label>
-      <input type="range" id="sl-drift" min="0" max="50" step="1" value="5" oninput="onSlider()">
-    </div>
-    <div class="filter-group">
-      <label>Min days clean <span id="lbl-days">0</span></label>
-      <input type="range" id="sl-days" min="0" max="180" step="5" value="0" oninput="onSlider()">
-    </div>
-    <div class="filter-group">
-      <label>Max mkt cap <span id="lbl-cap">$50M</span></label>
-      <input type="range" id="sl-cap" min="1" max="200" step="1" value="50" oninput="onSlider()">
-    </div>
-    <div id="filter-count">Showing <strong id="showing-n">—</strong></div>
-    <button id="reset-btn" onclick="resetFilters()">Reset</button>
-  </div>
-
-  <div id="lookup-bar">
-    <label>Lookup:</label>
-    <input type="text" id="lookup-input" placeholder="e.g. AON" maxlength="6"
-           onkeydown="if(event.key==='Enter')doLookup()"
-           autocapitalize="characters" autocorrect="off" autocomplete="off">
-    <button id="lookup-btn" onclick="doLookup()">Go</button>
-    <div id="lookup-result"></div>
-  </div>
-
-  <!-- Desktop table -->
-  <div id="table-container">
-    <table id="main-table">
-      <thead>
-        <tr>
-          <th class="left"  data-key="tier_num">Tier</th>
-          <th class="left"  data-key="ticker">Ticker</th>
-          <th class="left"  data-key="name">Company</th>
-          <th class="left"  data-key="sector">Sector</th>
-          <th class="right" data-key="market_cap_aud">Mkt Cap</th>
-          <th class="right" data-key="vol_ratio">Vol Ratio</th>
-          <th class="right" data-key="abnormal_drift">Drift %</th>
-          <th class="right" data-key="cum_ret_pct">Ret %</th>
-          <th class="right" data-key="days_since_material">Days Clean</th>
-          <th class="right" data-key="score">Score</th>
-        </tr>
-      </thead>
-      <tbody id="table-body"></tbody>
+  <div id="tbl-wrap">
+    <table id="tbl">
+      <thead><tr>
+        <th class="l" data-k="tier_num">Tier</th>
+        <th class="l" data-k="ticker">Ticker</th>
+        <th class="l" data-k="name">Company</th>
+        <th class="r" data-k="market_cap_aud">Mkt Cap</th>
+        <th class="r" data-k="vol_ratio">Vol Ratio</th>
+        <th class="r" data-k="abnormal_drift">Drift %</th>
+        <th class="r" data-k="days_since_material">Days Since Ann</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
     </table>
-    <div id="empty-msg" style="display:none">No stocks match the current filters.</div>
+    <div id="empty">No stocks match the current filter.</div>
   </div>
 
-  <!-- Mobile cards -->
-  <div id="cards-container">
-    <div id="empty-cards" style="display:none">No stocks match the current filters.</div>
+  <div id="cards">
+    <div id="empty-c">No stocks match the current filter.</div>
   </div>
 </div>
 
@@ -255,475 +132,210 @@
 'use strict';
 
 /* @@BAKED_CSV_START@@ */
-var BAKED_CSV = "ticker,ticker_yf,name,sector,vol_ratio,abnormal_drift,cum_ret_pct,bm_ret_pct,beta,r2_baseline,n_baseline,n_signal,flagged,asx_url,market_cap_aud,explanation_label,explained_by_type,explained_by_headline,days_since_material,ann_api_note,z_vol_ratio,z_abnormal_drift,score,tier,run_timestamp,vol_threshold,drift_threshold,ann_filter_on
-PKO,PKO.AX,PEAKO LIMITED,Materials,3.53,0.9212,75.0,-5.12,3.585,0.079,60,30,True,https://www.asx.com.au/markets/company/PKO/announcements,10414194.321451709,UNEXPLAINED,,,,covered 97d,0.1972447996053457,2.6301298594696236,1.6569758355239124,0,2026-03-03 13:32 UTC,2.0,0.05,True
-AEV,AEV.AX,AVENIRA LIMITED,Materials,3.77,0.3419,28.57,-5.12,0.342,0.002,60,30,True,https://www.asx.com.au/markets/company/AEV/announcements,34069154.09819791,UNEXPLAINED,,,,covered 56d,0.2242227428143169,0.8556036034059277,0.6030512591692834,0,2026-03-03 13:32 UTC,2.0,0.05,True
-RKB,RKB.AX,ROKEBY RESOURCES LIMITED,Materials,2.015,0.3202,16.67,-3.74,-2.355,0.028,60,30,True,https://www.asx.com.au/markets/company/RKB/announcements,7306244.9550279975,UNEXPLAINED,,,,covered 56d,0.02694653309871503,0.7891316203978453,0.4842575854781932,0,2026-03-03 13:32 UTC,2.0,0.05,True
-GR8,GR8.AX,GREAT DIRT RESOURCES LTD,Materials,6.422,1.1247,217.95,-5.12,-0.641,0.018,60,30,True,https://www.asx.com.au/markets/company/GR8/announcements,29374572.885917544,UNCLEAR,,,,only 7d covered,0.5223290152734485,3.2534961517343604,2.1610292971499954,1,2026-03-03 13:32 UTC,2.0,0.05,True
-AKN,AKN.AX,AUKING MINING LIMITED,Materials,3.458,1.1462,100.0,-5.12,3.127,0.111,60,30,True,https://www.asx.com.au/markets/company/AKN/announcements,12105828.829413634,UNCLEAR,,,,only 15d covered,0.18915141664265436,3.3193554897377604,2.067273860499718,1,2026-03-03 13:32 UTC,2.0,0.05,True
-GGE,GGE.AX,GRAND GULF ENERGY LIMITED,Energy,4.341,0.925,100.0,-5.12,-0.338,0.001,60,30,True,https://www.asx.com.au/markets/company/GGE/announcements,9361275.081371423,UNCLEAR,,,,only 14d covered,0.28840776603232754,2.6417701145585966,1.700425175148089,1,2026-03-03 13:32 UTC,2.0,0.05,True
-FAU,FAU.AX,FIRST AU LIMITED,Materials,4.112,0.8796,112.5,-5.12,0.959,0.013,60,30,True,https://www.asx.com.au/markets/company/FAU/announcements,44565242.57691631,UNCLEAR,,,,only 25d covered,0.2626663118871008,2.502699698495604,1.6066863438522025,1,2026-03-03 13:32 UTC,2.0,0.05,True
-LSA,LSA.AX,LACHLAN STAR LIMITED,Materials,9.177,0.6719,91.18,-5.12,0.033,0.0,60,30,True,https://www.asx.com.au/markets/company/LSA/announcements,35498783.206540346,UNCLEAR,,,,only 27d covered,0.8320133216930972,1.8664678611325283,1.4526860453567556,1,2026-03-03 13:32 UTC,2.0,0.05,True
-GMN,GMN.AX,GOLD MOUNTAIN LIMITED,Materials,4.939,0.7486,69.23,-5.12,1.268,0.025,60,30,True,https://www.asx.com.au/markets/company/GMN/announcements,23329752.918539375,UNCLEAR,,,,only 8d covered,0.35562780786134746,2.1014172204283774,1.4031014554015653,1,2026-03-03 13:32 UTC,2.0,0.05,True
-T92,T92.AX,TERRA CRITICAL MINERALS LIMITED,Energy,3.146,0.655,39.29,-5.12,2.266,0.118,60,30,True,https://www.asx.com.au/markets/company/T92/announcements,11424146.98009707,UNCLEAR,,,,only 13d covered,0.15408009047099178,1.8146993582368325,1.150451651130496,1,2026-03-03 13:32 UTC,2.0,0.05,True
-AAU,AAU.AX,ANTILLES GOLD LIMITED,Materials,2.285,0.5925,60.0,-5.12,1.073,0.014,60,30,True,https://www.asx.com.au/markets/company/AAU/announcements,49796823.965222105,UNCLEAR,,,,only 6d covered,0.057296719208807634,1.6232477942734613,0.9968673642475998,1,2026-03-03 13:32 UTC,2.0,0.05,True
-GEN,GEN.AX,GENMIN LIMITED,Materials,2.086,0.5356,-15.79,-5.12,2.144,0.042,60,30,True,https://www.asx.com.au/markets/company/GEN/announcements,27658290.313698236,UNCLEAR,,,,only 33d covered,0.034927507964702315,1.448950290441208,0.8833411774506057,1,2026-03-03 13:32 UTC,2.0,0.05,True
-BEZ,BEZ.AX,BESRA GOLD INC.,Materials,2.051,0.4279,41.03,-5.12,1.681,0.046,60,30,True,https://www.asx.com.au/markets/company/BEZ/announcements,41810091.2230189,UNCLEAR,,,,only 25d covered,0.030993224580060715,1.1190409554195269,0.6838218630837404,1,2026-03-03 13:32 UTC,2.0,0.05,True
-MNB,MNB.AX,MINBOS RESOURCES LIMITED,Materials,2.397,0.3181,-7.69,-5.12,1.166,0.041,60,30,True,https://www.asx.com.au/markets/company/MNB/announcements,26318880.179154158,UNCLEAR,,,,only 18d covered,0.06988642603966082,0.7826988478486762,0.49757387912507,1,2026-03-03 13:32 UTC,2.0,0.05,True
-ANX,ANX.AX,ANAX METALS LIMITED,Materials,2.177,0.2526,58.82,-5.12,0.793,0.01,60,30,True,https://www.asx.com.au/markets/company/ANX/announcements,27553295.260576088,UNCLEAR,,,,only 25d covered,0.04515664476477058,0.582057608815063,0.367297223194946,1,2026-03-03 13:32 UTC,2.0,0.05,True
-EMN,EMN.AX,EURO MANGANESE INC,Materials,2.696,0.2041,11.43,-5.12,1.172,0.08,60,30,True,https://www.asx.com.au/markets/company/EMN/announcements,30674336.095315218,UNCLEAR,,,,only 22d covered,0.10349644695417082,0.43349119517948687,0.30149329588936047,1,2026-03-03 13:32 UTC,2.0,0.05,True
-ODY,ODY.AX,ODYSSEY GOLD LTD,Materials,2.309,0.2032,3.03,-5.12,1.665,0.108,60,30,True,https://www.asx.com.au/markets/company/ODY/announcements,49016334.4986858,UNCLEAR,,,,only 25d covered,0.05999451352970475,0.43073429265841423,0.2824383810069304,1,2026-03-03 13:32 UTC,2.0,0.05,True
-PGY,PGY.AX,PILOT ENERGY LIMITED,Energy,3.454,0.1635,-11.0,-5.12,1.108,0.01,60,30,True,https://www.asx.com.au/markets/company/PGY/announcements,8634639.807000756,UNCLEAR,,,,no API data,0.18870178425583817,0.30912425922888087,0.26095526923966383,1,2026-03-03 13:32 UTC,2.0,0.05,True
-SBR,SBR.AX,SABRE RESOURCES LIMITED,Materials,2.417,0.1748,-0.0,-5.12,1.402,0.055,60,30,True,https://www.asx.com.au/markets/company/SBR/announcements,5908005.250896189,UNCLEAR,,,,only 35d covered,0.07213458797374175,0.3437387019934584,0.23509705638557177,1,2026-03-03 13:32 UTC,2.0,0.05,True
-ARI,ARI.AX,ARIKA RESOURCES LIMITED,Materials,2.303,0.1493,6.25,-5.12,1.051,0.066,60,30,True,https://www.asx.com.au/markets/company/ARI/announcements,39226390.2637742,UNCLEAR,,,,only 6d covered,0.059320064949480444,0.2656264638964029,0.1831039043176339,1,2026-03-03 13:32 UTC,2.0,0.05,True
-ACM,ACM.AX,AUSTRALIAN CRITICAL MINERALS LIMITED,Materials,2.205,0.1373,4.65,-5.12,0.528,0.01,60,30,True,https://www.asx.com.au/markets/company/ACM/announcements,12005433.747053057,UNCLEAR,,,,only 25d covered,0.04830407147248389,0.22886776361543562,0.15664228675825492,1,2026-03-03 13:32 UTC,2.0,0.05,True
-MCO,MCO.AX,MYECO GROUP LTD,Materials,2.63,0.0846,0.0,0.56,0.844,0.024,60,30,True,https://www.asx.com.au/markets/company/MCO/announcements,8450540.638840219,UNCLEAR,,,,only 28d covered,0.0960775125717037,0.06743580488152093,0.07889248795759404,1,2026-03-03 13:32 UTC,2.0,0.05,True
-IDA,IDA.AX,INDIANA RESOURCES LIMITED,Materials,2.436,0.0636,-4.76,-5.12,0.506,0.022,60,30,True,https://www.asx.com.au/markets/company/IDA/announcements,23836601.475193977,UNCLEAR,,,,only 33d covered,0.07427034181111865,0.003108079389828203,0.03157298435834438,1,2026-03-03 13:32 UTC,2.0,0.05,True
-PUR,PUR.AX,PURSUIT MINERALS LTD,Materials,2.022,0.062,10.0,-5.12,0.772,0.032,60,30,True,https://www.asx.com.au/markets/company/PUR/announcements,24703805.768710583,UNCLEAR,,,,only 25d covered,0.02773338977564332,-0.0017930806476341148,0.01001750752167686,1,2026-03-03 13:32 UTC,2.0,0.05,True
-CNJ,CNJ.AX,CONICO LTD,Materials,2.042,1.5065,22.22,-5.12,1.18,0.004,60,30,True,https://www.asx.com.au/markets/company/CNJ/announcements,7171856.9611385465,EXPLAINED,ISSUED CAPITAL,Follow-on Share Placement,25.0,covered 32d,0.029981551709724257,4.423035465673802,2.665813900088171,2,2026-03-03 13:32 UTC,2.0,0.05,True
-QEM,QEM.AX,QEM LIMITED,Materials,9.398,1.2244,193.75,-5.12,0.873,0.035,60,30,True,https://www.asx.com.au/markets/company/QEM/announcements,12115515.25865069,EXPLAINED,ISSUED CAPITAL,Placement Cleansing Notice,7.0,covered 7d,0.8568555110646915,3.55889968656873,2.4780820163671144,2,2026-03-03 13:32 UTC,2.0,0.05,True
-C1X,C1X.AX,COSMOS EXPLORATION LIMITED,Materials,2.111,1.0297,227.16,-5.12,-0.542,0.004,60,30,True,https://www.asx.com.au/markets/company/C1X/announcements,28743647.978372812,EXPLAINED,ASX ANNOUNCEMENT,Trading Halt,5.0,covered 32d,0.037737710382303516,2.9624897745100363,1.792588948858943,2,2026-03-03 13:32 UTC,2.0,0.05,True
-REC,REC.AX,RECHARGE METALS LIMITED,Materials,15.957,0.6867,70.0,-5.12,1.236,0.06,60,30,True,https://www.asx.com.au/markets/company/REC/announcements,12861867.810905911,EXPLAINED,ISSUED CAPITAL,Entitlement Issue Prospectus,8.0,covered 11d,1.5941402173465336,1.9118035914790543,1.784738241826046,2,2026-03-03 13:32 UTC,2.0,0.05,True
-HMG,HMG.AX,HAMELIN GOLD LIMITED,Materials,4.013,0.9217,121.43,-5.12,-0.063,0.0,60,30,True,https://www.asx.com.au/markets/company/HMG/announcements,25779463.284414887,EXPLAINED,ASX QUERY,Response to ASX Price Query,8.0,covered 23d,0.2515379103134002,2.6316614719813303,1.6796120473141583,2,2026-03-03 13:32 UTC,2.0,0.05,True
-LAT,LAT.AX,LATITUDE 66 LIMITED,Materials,4.056,0.8108,143.9,-5.12,0.619,0.016,60,30,True,https://www.asx.com.au/markets/company/LAT/announcements,35441610.23000944,EXPLAINED,PROGRESS REPORT,Phase 2 Drilling Program Commences at Laverton Gold Project,14.0,covered 14d,0.25637145847167425,2.2919498168847245,1.4777184735195044,2,2026-03-03 13:32 UTC,2.0,0.05,True
-OZM,OZM.AX,OZAURUM RESOURCES LIMITED,Materials,5.697,0.6808,63.79,-5.12,1.137,0.044,60,30,True,https://www.asx.com.au/markets/company/OZM/announcements,28610188.12632502,EXPLAINED,PROGRESS REPORT,Diamond Drilling Commences to Advance Heap Leach Feasibility,13.0,covered 26d,0.4408331451630148,1.893730563840912,1.312571596369753,2,2026-03-03 13:32 UTC,2.0,0.05,True
-ERL,ERL.AX,EMPIRE RESOURCES LIMITED,Materials,4.964,0.6219,81.25,-5.12,1.347,0.037,60,30,True,https://www.asx.com.au/markets/company/ERL/announcements,25863482.568320103,EXPLAINED,PROGRESS REPORT,Penny's RC Drilling Program Preliminary Results,4.0,covered 14d,0.3584380102789486,1.713306609961831,1.171359170088678,2,2026-03-03 13:32 UTC,2.0,0.05,True
-VKA,VKA.AX,VIKING MINES LIMITED,Materials,3.736,0.6027,130.0,-5.12,-0.744,0.008,60,30,True,https://www.asx.com.au/markets/company/VKA/announcements,46053969.09112825,EXPLAINED,PROGRESS REPORT,VIKING ACHIEVES 16X TUNGSTEN GRADE INCREASE,0.0,covered 7d,0.22040086752637933,1.6544926895122836,1.0808559607179218,2,2026-03-03 13:32 UTC,2.0,0.05,True
-RGL,RGL.AX,RIVERSGOLD LIMITED,Materials,4.684,0.4964,72.73,-5.12,0.72,0.007,60,30,True,https://www.asx.com.au/markets/company/RGL/announcements,41196824.900567286,EXPLAINED,PROGRESS REPORT,Gold Mine Development Plan and Drilling Update,7.0,covered 15d,0.32696374320181554,1.3288718695233817,0.9281086189947552,2,2026-03-03 13:32 UTC,2.0,0.05,True
-OLY,OLY.AX,OLYMPIO METALS LIMITED,Materials,11.297,0.3051,5.0,-5.12,1.011,0.021,60,30,True,https://www.asx.com.au/markets/company/OLY/announcements,7907298.274179347,EXPLAINED,ASX ANNOUNCEMENT,Trading Halt,11.0,covered 20d,1.070318486705676,0.7428769225442947,0.8738535482088472,2,2026-03-03 13:32 UTC,2.0,0.05,True
-AVW,AVW.AX,AVIRA RESOURCES LTD,Materials,2.066,0.518,36.36,-5.12,0.757,0.026,60,30,True,https://www.asx.com.au/markets/company/AVW/announcements,8400000.398978591,EXPLAINED,PROGRESS REPORT,Avira Submits PoW for Drilling at Mt Cattlin Gold Project,41.0,covered 85d,0.03267934603062138,1.3950375300291227,0.8500942564297221,2,2026-03-03 13:32 UTC,2.0,0.05,True
-JAV,JAV.AX,JAVELIN MINERALS LIMITED,Materials,3.169,0.487,66.67,-5.12,-0.577,0.002,60,30,True,https://www.asx.com.au/markets/company/JAV/announcements,38137263.36761333,EXPLAINED,PROGRESS REPORT,New Gold Drill Targets identified at Coogee,13.0,covered 20d,0.15666547669518485,1.3000775543032905,0.8427127232600482,2,2026-03-03 13:32 UTC,2.0,0.05,True
-CTN,CTN.AX,CATALINA RESOURCES LTD,Materials,3.592,0.4347,19.32,-5.12,1.782,0.017,60,30,True,https://www.asx.com.au/markets/company/CTN/announcements,11940068.207301497,EXPLAINED,PROGRESS REPORT,RC Drilling Underway at Cu VMS Breakaway Dam,1.0,covered 7d,0.2042141016009966,1.1398708855787414,0.7656081719876434,2,2026-03-03 13:32 UTC,2.0,0.05,True
-GDM,GDM.AX,GREAT DIVIDE MINING LTD,Materials,2.439,0.443,30.16,-5.12,1.322,0.063,60,30,True,https://www.asx.com.au/markets/company/GDM/announcements,27520959.41100627,EXPLAINED,PROGRESS REPORT,Coonambula drilling continues to deliver high grade results,12.0,covered 12d,0.0746075661012308,1.1652956532730774,0.7290204184043387,2,2026-03-03 13:32 UTC,2.0,0.05,True
-BTM,BTM.AX,BREAKTHROUGH MINERALS LIMITED,Energy,2.875,0.4265,35.14,-5.12,0.89,0.038,60,30,True,https://www.asx.com.au/markets/company/BTM/announcements,27082885.793248564,EXPLAINED,PROGRESS REPORT,Drilling Targets MRE Growth at Barbara Copper-Gold Project,0.0,covered 29d,0.12361749626419515,1.114752440386747,0.7182984627377262,2,2026-03-03 13:32 UTC,2.0,0.05,True
-NWM,NWM.AX,NORWEST MINERALS LIMITED,Materials,2.411,0.4315,41.67,-5.12,-0.408,0.003,60,30,True,https://www.asx.com.au/markets/company/NWM/announcements,19467160.27998156,EXPLAINED,PROGRESS REPORT,Marymia East drilling results,6.0,covered 42d,0.0714601393935175,1.1300685655038167,0.706625195059697,2,2026-03-03 13:32 UTC,2.0,0.05,True
-EV1,EV1.AX,EVOLUTION ENERGY MINERALS LIMITED,Materials,3.491,0.3874,16.67,-5.12,1.746,0.065,60,30,True,https://www.asx.com.au/markets/company/EV1/announcements,7530218.564432923,EXPLAINED,ISSUED CAPITAL,Dispatch of Entitlement Offer Documents,12.0,covered 12d,0.1928608838338879,0.9949803419712623,0.6741325587163125,2,2026-03-03 13:32 UTC,2.0,0.05,True
-VR8,VR8.AX,VANADIUM RESOURCES LIMITED,Materials,2.543,0.3897,13.04,-5.12,0.82,0.016,60,30,True,https://www.asx.com.au/markets/company/VR8/announcements,14993201.05032606,EXPLAINED,ASX QUERY,Response to ASX Price Query,41.0,covered 89d,0.08629800815845166,1.0020257595251143,0.6357346589784492,2,2026-03-03 13:32 UTC,2.0,0.05,True
-DUN,DUN.AX,DUNDAS MINERALS LIMITED,Materials,4.316,0.3304,20.51,-5.12,0.724,0.022,60,30,True,https://www.asx.com.au/markets/company/DUN/announcements,9774063.545644894,EXPLAINED,ASX ANNOUNCEMENT,Trading Halt,21.0,covered 21d,0.2855975636147263,0.8203765156366675,0.606464934827891,2,2026-03-03 13:32 UTC,2.0,0.05,True
-BPM,BPM.AX,BPM MINERALS LIMITED,Materials,3.387,0.3238,50.0,-5.12,1.386,0.051,60,30,True,https://www.asx.com.au/markets/company/BPM/announcements,37000459.98070541,EXPLAINED,ASX QUERY,Response to ASX Aware Query,8.0,covered 11d,0.18117044177666702,0.8001592304821353,0.552563714999948,2,2026-03-03 13:32 UTC,2.0,0.05,True
-MHM,MHM.AX,MOUNT HOPE MINING LIMITED,Materials,2.73,0.3343,14.71,-5.12,0.506,0.017,60,30,True,https://www.asx.com.au/markets/company/MHM/announcements,9520628.667697012,EXPLAINED,PROGRESS REPORT,High-grade 52.5g/t Visible Gold from Mt Solitary Rock Chips,43.0,covered 46d,0.10731832224210838,0.8323230932279819,0.5423211848336325,2,2026-03-03 13:32 UTC,2.0,0.05,True
-NAG,NAG.AX,NAGAMBIE RESOURCES LIMITED,Materials,4.158,0.2986,8.33,-5.12,0.226,0.001,60,30,True,https://www.asx.com.au/markets/company/NAG/announcements,13422969.736322647,EXPLAINED,ASX ANNOUNCEMENT,Trading Halt,5.0,covered 19d,0.26783708433548703,0.7229659598921041,0.5409144096694573,2,2026-03-03 13:32 UTC,2.0,0.05,True
-LCL,LCL.AX,LCL RESOURCES LIMITED,Materials,2.103,0.3276,14.29,-5.12,0.981,0.024,60,30,True,https://www.asx.com.au/markets/company/LCL/announcements,9594057.663693264,EXPLAINED,PROGRESS REPORT,High-Grade Gold and Silver Rock Chips at Kusi,6.0,covered 49d,0.036838445608671146,0.8117994855711084,0.5018150695861334,2,2026-03-03 13:32 UTC,2.0,0.05,True
-GTE,GTE.AX,GREAT WESTERN EXPLORATION LIMITED.,Materials,2.771,0.2965,17.65,-5.12,0.072,0.0,60,30,True,https://www.asx.com.au/markets/company/GTE/announcements,13482233.563476915,EXPLAINED,ISSUED CAPITAL,Cleansing Statement under S708A for Tranche 1 of Placement,18.0,covered 18d,0.11192705420697428,0.7165331873429349,0.47469073408855067,2,2026-03-03 13:32 UTC,2.0,0.05,True
-SKM,SKM.AX,SKYLARK MINERALS LIMITED,Materials,2.337,0.3004,32.14,-5.12,1.721,0.111,60,30,True,https://www.asx.com.au/markets/company/SKM/announcements,43211387.980399966,EXPLAINED,PROGRESS REPORT,Major Drilling Campaign Commences at Zaranou,26.0,covered 33d,0.06314194023741806,0.7284797649342493,0.46234463505551676,2,2026-03-03 13:32 UTC,2.0,0.05,True
-EG1,EG1.AX,EVERGOLD MINERALS LIMITED,Materials,2.852,0.2861,-8.57,-5.12,0.949,0.025,60,30,True,https://www.asx.com.au/markets/company/EG1/announcements,10793215.488650203,EXPLAINED,PROGRESS REPORT,Amended-EG1 Gravity Survey Targets Upgraded Gold Potential,5.0,covered 11d,0.12103211004000206,0.68467564709943,0.4592182322756588,2,2026-03-03 13:32 UTC,2.0,0.05,True
-EMC,EMC.AX,EVEREST METALS CORPORATION LTD,Materials,4.495,0.2363,16.67,-5.12,0.333,0.006,60,30,True,https://www.asx.com.au/markets/company/EMC/announcements,37758982.54075791,EXPLAINED,PROGRESS REPORT,Drilling Confirms Continuous Gold Mineralisation at Revere,13.0,covered 34d,0.3057186129247507,0.5321270409334158,0.44156366972994976,2,2026-03-03 13:32 UTC,2.0,0.05,True
-RR1,RR1.AX,REACH RESOURCES LIMITED,Materials,2.556,0.2733,33.33,-5.12,-0.206,0.001,60,30,True,https://www.asx.com.au/markets/company/RR1/announcements,13990902.248532167,EXPLAINED,ASX ANNOUNCEMENT,Trading Halt,0.0,covered 71d,0.08775931341560426,0.6454663667997315,0.4223835454460806,2,2026-03-03 13:32 UTC,2.0,0.05,True
-GAL,GAL.AX,GALILEO MINING LTD,Materials,2.924,0.2529,15.0,-5.12,1.99,0.123,60,30,True,https://www.asx.com.au/markets/company/GAL/announcements,44465607.84706363,EXPLAINED,PROGRESS REPORT,Diamond Drilling Underway at Callisto PGE Resource,5.0,covered 42d,0.1291254930026934,0.5829765763220872,0.4014361429943297,2,2026-03-03 13:32 UTC,2.0,0.05,True
-AOA,AOA.AX,AUSMON RESOURCES LIMITED,Materials,2.317,0.2643,0.0,-5.12,0.882,0.004,60,30,True,https://www.asx.com.au/markets/company/AOA/announcements,2853027.3355115205,EXPLAINED,PROGRESS REPORT,Drilling results (pXRF) for rare earth elements in SA,7.0,covered 62d,0.06089377830333713,0.617897341589006,0.39509591627473845,2,2026-03-03 13:32 UTC,2.0,0.05,True
-NAE,NAE.AX,NEW AGE EXPLORATION LIMITED,Energy,3.191,0.1869,42.86,-5.12,-1.33,0.008,60,30,True,https://www.asx.com.au/markets/company/NAE/announcements,18926600.507751472,EXPLAINED,COMPANY ADMINISTRATION,CEO Appointment and NSW Silver Project Acquisition,1.0,covered 13d,0.15913845482267386,0.3808037247767671,0.2921376167951298,2,2026-03-03 13:32 UTC,2.0,0.05,True
-NSM,NSM.AX,NORTH STAWELL MINERALS LTD,Materials,2.29,0.1793,8.47,-5.12,-0.411,0.008,60,30,True,https://www.asx.com.au/markets/company/NSM/announcements,11581397.380722798,EXPLAINED,PROGRESS REPORT,Mineralisation Extended at Darlington West,25.0,covered 25d,0.05785875969232785,0.3575232145988211,0.2376574326362238,2,2026-03-03 13:32 UTC,2.0,0.05,True
-BMG,BMG.AX,BMG RESOURCES LIMITED,Materials,3.082,0.1433,48.15,-5.12,1.659,0.036,60,30,True,https://www.asx.com.au/markets/company/BMG/announcements,45589284.35561529,EXPLAINED,PROGRESS REPORT,Gold Drilling Begins at Abercromby,1.0,covered 20d,0.1468859722819328,0.2472471137559193,0.2071026571663247,2,2026-03-03 13:32 UTC,2.0,0.05,True
-DAF,DAF.AX,DISCOVERY ALASKA LIMITED,Materials,4.116,0.0892,5.56,-5.12,0.504,0.005,60,30,True,https://www.asx.com.au/markets/company/DAF/announcements,4870834.143377654,EXPLAINED,ISSUED CAPITAL,\"Private Placement Completed To Raise $354,000\",25.0,covered 25d,0.263115944273917,0.08152663998922507,0.15416236170310182,2,2026-03-03 13:32 UTC,2.0,0.05,True
-TRM,TRM.AX,TRUSCOTT MINING CORPORATION LIMITED,Materials,2.876,0.0901,8.86,-5.12,0.166,0.003,60,30,True,https://www.asx.com.au/markets/company/TRM/announcements,18377216.784104705,EXPLAINED,PROGRESS REPORT,Drilling commencing today,21.0,covered 33d,0.12372990436089917,0.08428354251029761,0.10006208725053824,2,2026-03-03 13:32 UTC,2.0,0.05,True
-SLB,SLB.AX,STELAR METALS LIMITED,Materials,2.613,0.0601,-4.29,-5.12,-0.232,0.005,60,30,True,https://www.asx.com.au/markets/company/SLB/announcements,4196769.5010634065,EXPLAINED,PROGRESS REPORT,High-grade Silver Assays up to 211 g/t Ag at Baratta Project,26.0,covered 60d,0.09416657492773492,-0.007613208192120599,0.03309870505582161,2,2026-03-03 13:32 UTC,2.0,0.05,True
+var BAKED_CSV = "ticker,name,explanation_label,vol_ratio,abnormal_drift,days_since_material,market_cap_aud,asx_url,run_timestamp
+PKO,PEAKO LIMITED,UNEXPLAINED,3.53,0.9212,,10414194.321451709,https://www.asx.com.au/markets/company/PKO/announcements,2026-03-03 13:50 UTC
+PGY,PILOT ENERGY LIMITED,UNCLEAR,3.454,0.1635,,8634639.807000756,https://www.asx.com.au/markets/company/PGY/announcements,2026-03-03 13:50 UTC
+QEM,QEM LIMITED,EXPLAINED,9.398,1.2244,1.0,12115515.25865069,https://www.asx.com.au/markets/company/QEM/announcements,2026-03-03 13:50 UTC
+GR8,GREAT DIRT RESOURCES LTD,EXPLAINED,6.422,1.1247,4.0,29374572.885917544,https://www.asx.com.au/markets/company/GR8/announcements,2026-03-03 13:50 UTC
+AKN,AUKING MINING LIMITED,EXPLAINED,3.458,1.1462,0.0,12105828.829413634,https://www.asx.com.au/markets/company/AKN/announcements,2026-03-03 13:50 UTC
+REC,RECHARGE METALS LIMITED,EXPLAINED,15.957,0.6867,0.0,12861867.810905911,https://www.asx.com.au/markets/company/REC/announcements,2026-03-03 13:50 UTC
+GGE,GRAND GULF ENERGY LIMITED,EXPLAINED,4.341,0.925,8.0,9361275.081371423,https://www.asx.com.au/markets/company/GGE/announcements,2026-03-03 13:50 UTC
+HMG,HAMELIN GOLD LIMITED,EXPLAINED,4.013,0.9217,8.0,25779463.284414887,https://www.asx.com.au/markets/company/HMG/announcements,2026-03-03 13:50 UTC
+FAU,FIRST AU LIMITED,EXPLAINED,4.112,0.8796,22.0,44565242.57691631,https://www.asx.com.au/markets/company/FAU/announcements,2026-03-03 13:50 UTC
+LAT,LATITUDE 66 LIMITED,EXPLAINED,4.056,0.8108,0.0,35441610.23000944,https://www.asx.com.au/markets/company/LAT/announcements,2026-03-03 13:50 UTC
+LSA,LACHLAN STAR LIMITED,EXPLAINED,9.177,0.6719,22.0,35498783.206540346,https://www.asx.com.au/markets/company/LSA/announcements,2026-03-03 13:50 UTC
+GMN,GOLD MOUNTAIN LIMITED,EXPLAINED,4.939,0.7486,2.0,23329752.918539375,https://www.asx.com.au/markets/company/GMN/announcements,2026-03-03 13:50 UTC
+OZM,OZAURUM RESOURCES LIMITED,EXPLAINED,5.697,0.6808,13.0,28610188.12632502,https://www.asx.com.au/markets/company/OZM/announcements,2026-03-03 13:50 UTC
+ERL,EMPIRE RESOURCES LIMITED,EXPLAINED,4.964,0.6219,4.0,25863482.568320103,https://www.asx.com.au/markets/company/ERL/announcements,2026-03-03 13:50 UTC
+T92,TERRA CRITICAL MINERALS LIMITED,EXPLAINED,3.146,0.655,0.0,11424146.98009707,https://www.asx.com.au/markets/company/T92/announcements,2026-03-03 13:50 UTC
+VKA,VIKING MINES LIMITED,EXPLAINED,3.736,0.6027,0.0,46053969.09112825,https://www.asx.com.au/markets/company/VKA/announcements,2026-03-03 13:50 UTC
+RGL,RIVERSGOLD LIMITED,EXPLAINED,4.684,0.4964,2.0,41196824.900567286,https://www.asx.com.au/markets/company/RGL/announcements,2026-03-03 13:50 UTC
+OLY,OLYMPIO METALS LIMITED,EXPLAINED,11.297,0.3051,7.0,7907298.274179347,https://www.asx.com.au/markets/company/OLY/announcements,2026-03-03 13:50 UTC
+JAV,JAVELIN MINERALS LIMITED,EXPLAINED,3.169,0.487,4.0,38137263.36761333,https://www.asx.com.au/markets/company/JAV/announcements,2026-03-03 13:50 UTC
+CTN,CATALINA RESOURCES LTD,EXPLAINED,3.592,0.4347,1.0,11940068.207301497,https://www.asx.com.au/markets/company/CTN/announcements,2026-03-03 13:50 UTC
+BTM,BREAKTHROUGH MINERALS LIMITED,EXPLAINED,2.875,0.4265,0.0,27082885.793248564,https://www.asx.com.au/markets/company/BTM/announcements,2026-03-03 13:50 UTC
+EV1,EVOLUTION ENERGY MINERALS LIMITED,EXPLAINED,3.491,0.3874,8.0,7530218.564432923,https://www.asx.com.au/markets/company/EV1/announcements,2026-03-03 13:50 UTC
+VR8,VANADIUM RESOURCES LIMITED,EXPLAINED,2.543,0.3897,41.0,14993201.05032606,https://www.asx.com.au/markets/company/VR8/announcements,2026-03-03 13:50 UTC
+DUN,DUNDAS MINERALS LIMITED,EXPLAINED,4.316,0.3304,8.0,9774063.545644894,https://www.asx.com.au/markets/company/DUN/announcements,2026-03-03 13:50 UTC
+AEV,AVENIRA LIMITED,EXPLAINED,3.77,0.3419,4.0,34069154.09819791,https://www.asx.com.au/markets/company/AEV/announcements,2026-03-03 13:50 UTC
+BPM,BPM MINERALS LIMITED,EXPLAINED,3.387,0.3238,5.0,37000459.98070541,https://www.asx.com.au/markets/company/BPM/announcements,2026-03-03 13:50 UTC
+MHM,MOUNT HOPE MINING LIMITED,EXPLAINED,2.73,0.3343,29.0,9520628.667697012,https://www.asx.com.au/markets/company/MHM/announcements,2026-03-03 13:50 UTC
+NAG,NAGAMBIE RESOURCES LIMITED,EXPLAINED,4.158,0.2986,1.0,13422969.736322647,https://www.asx.com.au/markets/company/NAG/announcements,2026-03-03 13:50 UTC
+GTE,GREAT WESTERN EXPLORATION LIMITED.,EXPLAINED,2.771,0.2965,2.0,13482233.563476915,https://www.asx.com.au/markets/company/GTE/announcements,2026-03-03 13:50 UTC
+EG1,EVERGOLD MINERALS LIMITED,EXPLAINED,2.852,0.2861,5.0,10793215.488650203,https://www.asx.com.au/markets/company/EG1/announcements,2026-03-03 13:50 UTC
+EMC,EVEREST METALS CORPORATION LTD,EXPLAINED,4.495,0.2363,6.0,37758982.54075791,https://www.asx.com.au/markets/company/EMC/announcements,2026-03-03 13:50 UTC
+RR1,REACH RESOURCES LIMITED,EXPLAINED,2.556,0.2733,0.0,13990902.248532167,https://www.asx.com.au/markets/company/RR1/announcements,2026-03-03 13:50 UTC
+GAL,GALILEO MINING LTD,EXPLAINED,2.924,0.2529,5.0,44465607.84706363,https://www.asx.com.au/markets/company/GAL/announcements,2026-03-03 13:50 UTC
+EMN,EURO MANGANESE INC,EXPLAINED,2.696,0.2041,2.0,30674336.095315218,https://www.asx.com.au/markets/company/EMN/announcements,2026-03-03 13:50 UTC
+NAE,NEW AGE EXPLORATION LIMITED,EXPLAINED,3.191,0.1869,1.0,18926600.507751472,https://www.asx.com.au/markets/company/NAE/announcements,2026-03-03 13:50 UTC
 ";
 /* @@BAKED_CSV_END@@ */
 
-let ALL_ROWS    = [];
-let FILTERED    = [];
-let SORT_KEY    = 'score';
-let SORT_ASC    = false;
-let TIER_FILTER = '';
-let FILTERS_OPEN = true;
+var ALL=[], FILT=[], TIER='', SK='tier_num', SA=true;
 
-// ── CSV Parser ──────────────────────────────────────────────────────────────
-function parseLine(line) {
-  const fields = [];
-  let cur = '', inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') {
-      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
-      else inQ = !inQ;
-    } else if (c === ',' && !inQ) {
-      fields.push(cur); cur = '';
-    } else cur += c;
-  }
-  fields.push(cur);
-  return fields;
-}
+function num(s){ var v=parseFloat(s); return isNaN(v)?null:v; }
 
-function num(v) {
-  if (v === undefined || v === null || v === '' || v === 'nan') return null;
-  const n = parseFloat(v);
-  return isNaN(n) ? null : n;
-}
-
-const TS_RE    = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/;
-const TIER_SET = new Set(['UNEXPLAINED','UNCLEAR','EXPLAINED']);
-
-function parseCSV(text) {
-  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
-  if (!lines.length) return { rows:[], ts:'' };
-
-  const headers = parseLine(lines[0]);
-  const col = {};
-  headers.forEach((h, i) => { col[h.trim()] = i; });
-
-  function get(row, name) {
-    const i = col[name];
-    return i !== undefined ? (row[i] || '').trim() : '';
-  }
-
-  function scanTS(row) {
-    const byName = get(row, 'run_timestamp');
-    if (TS_RE.test(byName)) return byName;
-    for (const v of row) { const s=(v||'').trim(); if (TS_RE.test(s)) return s; }
-    return '';
-  }
-
-  function scanLabel(row) {
-    const byName = get(row, 'explanation_label');
-    if (TIER_SET.has(byName)) return byName;
-    for (const v of row) { const s=(v||'').trim(); if (TIER_SET.has(s)) return s; }
-    return '';
-  }
-
-  const rows = [];
-  for (let li = 1; li < lines.length; li++) {
-    if (!lines[li].trim()) continue;
-    const row = parseLine(lines[li]);
-
-    if (get(row,'flagged') !== 'True') continue;
-
-    const label   = scanLabel(row);
-    const tierRaw = num(get(row,'tier'));
-    let tierLabel;
-    if      (label === 'UNEXPLAINED') tierLabel = 'UNEXPLAINED';
-    else if (label === 'UNCLEAR')     tierLabel = 'UNCLEAR';
-    else if (label === 'EXPLAINED')   tierLabel = 'EXPLAINED';
-    else if (tierRaw === 0)           tierLabel = 'UNEXPLAINED';
-    else if (tierRaw === 1)           tierLabel = 'UNCLEAR';
-    else if (tierRaw === 2)           tierLabel = 'EXPLAINED';
-    else                              tierLabel = 'FLAGGED';
-
-    const tierNum = {UNEXPLAINED:0,UNCLEAR:1,EXPLAINED:2,FLAGGED:3}[tierLabel];
-    const capRaw  = get(row,'market_cap_aud');
-    const daysRaw = get(row,'days_since_material');
-
+function parseCSV(text){
+  var lines=text.split('\n'), headers=splitLine(lines[0]), col={};
+  headers.forEach(function(h,i){ col[h.trim()]=i; });
+  function g(row,name){ var i=col[name]; return i!==undefined?(row[i]||'').trim():''; }
+  var rows=[], maxTS='';
+  for(var i=1;i<lines.length;i++){
+    if(!lines[i].trim()) continue;
+    var row=splitLine(lines[i]);
+    var lbl=g(row,'explanation_label');
+    var ts=g(row,'run_timestamp');
+    if(ts>maxTS) maxTS=ts;
+    var tn={UNEXPLAINED:0,UNCLEAR:1,EXPLAINED:2}[lbl]??3;
+    var cap=g(row,'market_cap_aud'), days=g(row,'days_since_material');
     rows.push({
-      ticker:               get(row,'ticker'),
-      name:                 get(row,'name'),
-      sector:               get(row,'sector'),
-      asx_url:              get(row,'asx_url'),
-      vol_ratio:            num(get(row,'vol_ratio'))      ?? 0,
-      abnormal_drift:       num(get(row,'abnormal_drift')) ?? 0,
-      cum_ret_pct:          num(get(row,'cum_ret_pct'))    ?? 0,
-      score:                num(get(row,'score'))          ?? 0,
-      market_cap_aud:       (capRaw  && capRaw  !== 'nan') ? num(capRaw)  : null,
-      days_since_material:  (daysRaw && daysRaw !== 'nan') ? (parseInt(daysRaw,10)||null) : null,
-      tier_label:           tierLabel,
-      tier_num:             tierNum,
-      run_ts:               scanTS(row),
-      explained_by_headline: get(row,'explained_by_headline'),
-      ann_api_note:         get(row,'ann_api_note'),
+      ticker: g(row,'ticker'),
+      name:   g(row,'name'),
+      asx_url:g(row,'asx_url'),
+      tier_label: lbl||'FLAGGED',
+      tier_num:   tn,
+      vol_ratio:          num(g(row,'vol_ratio'))??0,
+      abnormal_drift:     num(g(row,'abnormal_drift'))??0,
+      market_cap_aud:     (cap&&cap!=='nan')?num(cap):null,
+      days_since_material:(days&&days!=='nan')?(parseInt(days,10)||null):null,
+      run_ts: ts,
     });
   }
-
-  const allTS = rows.map(r=>r.run_ts).filter(Boolean);
-  const maxTS = allTS.length ? allTS.reduce((a,b)=>a>b?a:b) : '';
-  const latest = maxTS ? rows.filter(r=>r.run_ts===maxTS) : rows;
-  return { rows: latest, ts: maxTS };
+  var latest = maxTS ? rows.filter(function(r){return r.run_ts===maxTS;}) : rows;
+  return {rows:latest, ts:maxTS};
 }
 
-// ── Auto-load ──────────────────────────────────────────────────────────────
-async function tryAutoLoad() {
-  // 1. Data baked in by screener.py (GitHub Pages / no server needed)
-  if (typeof BAKED_CSV === 'string' && BAKED_CSV.length > 0) {
-    loadData(BAKED_CSV);
-    return;
+function splitLine(line){
+  var out=[],cur='',inq=false;
+  for(var i=0;i<line.length;i++){
+    var c=line[i];
+    if(c==='"'){ inq=!inq; }
+    else if(c===','&&!inq){ out.push(cur);cur=''; }
+    else cur+=c;
   }
-  // 2. Try fetch when served locally (python -m http.server)
-  try {
-    const resp = await fetch('./screener_output.csv');
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const text = await resp.text();
-    loadData(text);
-  } catch(e) {
-    // 3. Fall back to manual file picker
-    document.getElementById('load-status').style.display = 'none';
-    document.getElementById('load-fallback').style.display = 'flex';
-  }
+  out.push(cur);
+  return out;
 }
 
-// ── Data loading ──────────────────────────────────────────────────────────
-function loadData(text) {
-  const { rows, ts } = parseCSV(text);
-  ALL_ROWS = rows;
-
-  document.getElementById('load-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'flex';
-
-  document.getElementById('hdr-date').textContent     = ts || '—';
-  document.getElementById('hdr-screened').textContent = '—';
-  document.getElementById('hdr-flagged').textContent  = rows.length;
-
-  const n0 = rows.filter(r=>r.tier_label==='UNEXPLAINED').length;
-  const n1 = rows.filter(r=>r.tier_label==='UNCLEAR').length;
-  const n2 = rows.filter(r=>r.tier_label==='EXPLAINED').length;
-  document.getElementById('cnt-unexp').textContent = n0;
-  document.getElementById('cnt-uncl').textContent  = n1;
-  document.getElementById('cnt-expl').textContent  = n2;
-  document.getElementById('cnt-flag').textContent  = rows.length;
-
-  applyFilters();
+function boot(text){
+  var p=parseCSV(text);
+  ALL=p.rows;
+  document.getElementById('load-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('hdr-date').textContent=p.ts||'—';
+  document.getElementById('hdr-n').textContent=ALL.length;
+  document.getElementById('n-unexp').textContent=ALL.filter(function(r){return r.tier_label==='UNEXPLAINED';}).length;
+  document.getElementById('n-uncl').textContent =ALL.filter(function(r){return r.tier_label==='UNCLEAR';}).length;
+  document.getElementById('n-expl').textContent =ALL.filter(function(r){return r.tier_label==='EXPLAINED';}).length;
+  document.getElementById('n-all').textContent  =ALL.length;
+  render();
 }
 
-// File-picker fallback
-document.getElementById('drop-zone').addEventListener('click', ()=>
-  document.getElementById('file-input').click());
+function ft(t){ TIER=(TIER===t)?'':t; render(); }
 
-document.getElementById('file-input').addEventListener('change', e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  const fr = new FileReader();
-  fr.onload = ev => loadData(ev.target.result);
-  fr.readAsText(f);
-});
-
-const dz = document.getElementById('drop-zone');
-dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
-dz.addEventListener('dragleave', ()=> dz.classList.remove('drag-over'));
-dz.addEventListener('drop', e => {
-  e.preventDefault(); dz.classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (!f) return;
-  const fr = new FileReader();
-  fr.onload = ev => loadData(ev.target.result);
-  fr.readAsText(f);
-});
-
-// ── Filter toggle (mobile) ─────────────────────────────────────────────────
-function toggleFilters() {
-  FILTERS_OPEN = !FILTERS_OPEN;
-  document.getElementById('filters').classList.toggle('collapsed', !FILTERS_OPEN);
-  const btn = document.getElementById('filter-toggle');
-  btn.textContent = FILTERS_OPEN ? 'Hide Filters' : 'Filters';
-  btn.classList.toggle('open', FILTERS_OPEN);
-}
-
-// ── Sliders ────────────────────────────────────────────────────────────────
-function onSlider() {
-  const vol   = parseFloat(document.getElementById('sl-vol').value);
-  const drift = parseFloat(document.getElementById('sl-drift').value);
-  const days  = parseInt(document.getElementById('sl-days').value, 10);
-  const cap   = parseInt(document.getElementById('sl-cap').value, 10);
-  document.getElementById('lbl-vol').textContent   = vol.toFixed(1) + '×';
-  document.getElementById('lbl-drift').textContent = drift + '%';
-  document.getElementById('lbl-days').textContent  = days;
-  document.getElementById('lbl-cap').textContent   = '$' + cap + 'M';
-  applyFilters();
-}
-
-function resetFilters() {
-  document.getElementById('sl-vol').value   = '2.0';
-  document.getElementById('sl-drift').value = '5';
-  document.getElementById('sl-days').value  = '0';
-  document.getElementById('sl-cap').value   = '50';
-  TIER_FILTER = '';
-  updateBadgeActive();
-  onSlider();
-}
-
-function filterTier(t) {
-  TIER_FILTER = (TIER_FILTER === t) ? '' : t;
-  updateBadgeActive();
-  applyFilters();
-}
-
-function updateBadgeActive() {
-  ['bdg-unexp','bdg-uncl','bdg-expl','bdg-flag'].forEach((id,i) => {
-    const lbl = ['UNEXPLAINED','UNCLEAR','EXPLAINED',''][i];
-    document.getElementById(id).classList.toggle('active', TIER_FILTER === lbl);
+function render(){
+  FILT=ALL.filter(function(r){ return !TIER||r.tier_label===TIER; });
+  var dir=SA?1:-1;
+  FILT.sort(function(a,b){
+    var av=a[SK],bv=b[SK];
+    if(av===null||av===undefined) av=dir>0?Infinity:-Infinity;
+    if(bv===null||bv===undefined) bv=dir>0?Infinity:-Infinity;
+    return typeof av==='string'?dir*av.localeCompare(bv):dir*(av-bv);
   });
-}
-
-// ── Filter ─────────────────────────────────────────────────────────────────
-function applyFilters() {
-  const vol   = parseFloat(document.getElementById('sl-vol').value);
-  const drift = parseFloat(document.getElementById('sl-drift').value) / 100;
-  const days  = parseInt(document.getElementById('sl-days').value, 10);
-  const capM  = parseInt(document.getElementById('sl-cap').value, 10) * 1e6;
-
-  FILTERED = ALL_ROWS.filter(r => {
-    if (r.vol_ratio < vol)        return false;
-    if (r.abnormal_drift < drift) return false;
-    if (days > 0 && r.days_since_material !== null && r.days_since_material < days) return false;
-    if (r.market_cap_aud !== null && r.market_cap_aud > capM) return false;
-    if (TIER_FILTER && r.tier_label !== TIER_FILTER)          return false;
-    return true;
+  ['b-unexp','b-uncl','b-expl','b-all'].forEach(function(id,i){
+    var lbl=['UNEXPLAINED','UNCLEAR','EXPLAINED',''][i];
+    document.getElementById(id).classList.toggle('active',TIER===lbl);
   });
-
-  document.getElementById('showing-n').textContent = FILTERED.length;
-  renderTable();
-  renderCards();
+  renderTable(); renderCards();
 }
 
-// ── Sort ───────────────────────────────────────────────────────────────────
-document.querySelectorAll('#main-table thead th[data-key]').forEach(th => {
-  th.addEventListener('click', () => {
-    const key = th.dataset.key;
-    if (SORT_KEY === key) SORT_ASC = !SORT_ASC;
-    else { SORT_KEY = key; SORT_ASC = false; }
-    document.querySelectorAll('#main-table thead th').forEach(h => h.classList.remove('sort-asc','sort-desc'));
-    th.classList.add(SORT_ASC ? 'sort-asc' : 'sort-desc');
-    applyFilters();
+function fmtCap(v){
+  if(v===null) return '<span class="neu">—</span>';
+  return v>=1e9?'$'+(v/1e9).toFixed(2)+'B':'$'+(v/1e6).toFixed(1)+'M';
+}
+function fmtCapPlain(v){
+  if(v===null) return '—';
+  return v>=1e9?'$'+(v/1e9).toFixed(2)+'B':'$'+(v/1e6).toFixed(1)+'M';
+}
+function fmtDrift(v){
+  var s=(v>=0?'+':'')+(v*100).toFixed(1)+'%';
+  return '<span class="'+(v>0?'pos':v<0?'neg':'neu')+'">'+s+'</span>';
+}
+function tierBadge(lbl){
+  var m={UNEXPLAINED:['t-red','UNEXPLAINED'],UNCLEAR:['t-amb','UNCLEAR'],EXPLAINED:['t-grn','EXPLAINED']};
+  var e=m[lbl]||['t-mut',lbl];
+  return '<span class="tier-badge '+e[0]+'">'+e[1]+'</span>';
+}
+
+function renderTable(){
+  var tb=document.getElementById('tbody'), em=document.getElementById('empty');
+  if(!FILT.length){tb.innerHTML='';em.style.display='';return;}
+  em.style.display='none';
+  tb.innerHTML=FILT.map(function(r){
+    return '<tr>'+
+      '<td class="l">'+tierBadge(r.tier_label)+'</td>'+
+      '<td class="tk l"><a href="'+(r.asx_url||'#')+'" target="_blank" rel="noopener">'+r.ticker+'</a></td>'+
+      '<td class="co l" title="'+r.name+'">'+r.name+'</td>'+
+      '<td class="r">'+fmtCap(r.market_cap_aud)+'</td>'+
+      '<td class="r">'+r.vol_ratio.toFixed(2)+'×</td>'+
+      '<td class="r">'+fmtDrift(r.abnormal_drift)+'</td>'+
+      '<td class="r '+(r.days_since_material===null?'neu':'')+'">'+
+        (r.days_since_material===null?'—':r.days_since_material)+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function renderCards(){
+  var c=document.getElementById('cards'), em=document.getElementById('empty-c');
+  Array.from(c.children).forEach(function(el){if(el!==em)el.remove();});
+  if(!FILT.length){em.style.display='';return;}
+  em.style.display='none';
+  var f=document.createDocumentFragment();
+  FILT.forEach(function(r){
+    var d=document.createElement('div'); d.className='card';
+    var drift=(r.abnormal_drift>=0?'+':'')+(r.abnormal_drift*100).toFixed(1)+'%';
+    d.innerHTML=
+      '<div class="ct">'+tierBadge(r.tier_label)+
+        '<span class="ck"><a href="'+(r.asx_url||'#')+'" target="_blank" rel="noopener">'+r.ticker+'</a></span>'+
+      '</div>'+
+      '<div class="cn" title="'+r.name+'">'+r.name+'</div>'+
+      '<div class="cd"></div>'+
+      '<div class="cm">'+
+        '<div><span class="cml">Vol Ratio</span><span class="cmv">'+r.vol_ratio.toFixed(2)+'×</span></div>'+
+        '<div><span class="cml">Drift</span><span class="cmv '+(r.abnormal_drift>0?'pos':'neg')+'">'+drift+'</span></div>'+
+        '<div><span class="cml">Mkt Cap</span><span class="cmv">'+fmtCapPlain(r.market_cap_aud)+'</span></div>'+
+        '<div><span class="cml">Days Since Ann</span><span class="cmv '+(r.days_since_material===null?'neu':'')+'">'+
+          (r.days_since_material===null?'—':r.days_since_material)+'</span></div>'+
+      '</div>';
+    f.appendChild(d);
+  });
+  c.insertBefore(f,em);
+}
+
+// Sortable headers
+document.querySelectorAll('#tbl thead th[data-k]').forEach(function(th){
+  th.addEventListener('click',function(){
+    var k=th.dataset.k;
+    if(SK===k) SA=!SA; else{SK=k;SA=false;}
+    document.querySelectorAll('#tbl thead th').forEach(function(h){h.classList.remove('sort-asc','sort-desc');});
+    th.classList.add(SA?'sort-asc':'sort-desc');
+    render();
   });
 });
-document.querySelector('[data-key="score"]').classList.add('sort-desc');
+document.querySelector('[data-k="tier_num"]').classList.add('sort-asc');
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-function getSorted() {
-  const dir = SORT_ASC ? 1 : -1;
-  return [...FILTERED].sort((a, b) => {
-    let av = a[SORT_KEY], bv = b[SORT_KEY];
-    if (av === null || av === undefined) av = dir > 0 ?  Infinity : -Infinity;
-    if (bv === null || bv === undefined) bv = dir > 0 ?  Infinity : -Infinity;
-    if (typeof av === 'string') return dir * av.localeCompare(bv);
-    return dir * (av - bv);
-  });
+// Boot
+if(typeof BAKED_CSV==='string'&&BAKED_CSV.length>0){
+  boot(BAKED_CSV);
+} else {
+  fetch('./screener_output.csv')
+    .then(function(r){if(!r.ok)throw new Error();return r.text();})
+    .then(boot)
+    .catch(function(){
+      document.querySelector('#load-screen p').textContent='No data — run screener.py first.';
+      document.querySelector('.spinner').style.display='none';
+    });
 }
-
-function fmtCap(v) {
-  if (v === null) return '<span class="neu">N/A</span>';
-  return v >= 1e9 ? '$'+(v/1e9).toFixed(2)+'B' : '$'+(v/1e6).toFixed(1)+'M';
-}
-function fmtCapPlain(v) {
-  if (v === null) return 'N/A';
-  return v >= 1e9 ? '$'+(v/1e9).toFixed(2)+'B' : '$'+(v/1e6).toFixed(1)+'M';
-}
-function fmtPct(v) {
-  const s = (v >= 0 ? '+' : '') + (v*100).toFixed(1) + '%';
-  return `<span class="${v>0?'pos':v<0?'neg':'neu'}">${s}</span>`;
-}
-function fmtRet(v) {
-  const s = (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
-  return `<span class="${v>0?'pos':v<0?'neg':'neu'}">${s}</span>`;
-}
-function colorClass(v) { return v > 0 ? 'pos' : v < 0 ? 'neg' : 'neu'; }
-function tierBadge(lbl) {
-  const m = {UNEXPLAINED:['t-red','UNEXPLAINED'],UNCLEAR:['t-amb','UNCLEAR'],
-             EXPLAINED:['t-grn','EXPLAINED'],FLAGGED:['t-mut','FLAGGED']};
-  const [cls,txt] = m[lbl] || ['t-mut',lbl];
-  return `<span class="tier-badge ${cls}">${txt}</span>`;
-}
-
-// ── Desktop render ─────────────────────────────────────────────────────────
-function renderTable() {
-  const rows  = getSorted();
-  const tbody = document.getElementById('table-body');
-  const empty = document.getElementById('empty-msg');
-
-  if (!rows.length) { tbody.innerHTML = ''; empty.style.display = ''; return; }
-  empty.style.display = 'none';
-
-  tbody.innerHTML = rows.map(r => `<tr>
-    <td class="left">${tierBadge(r.tier_label)}</td>
-    <td class="ticker left"><a href="${r.asx_url||'#'}" target="_blank">${r.ticker}</a></td>
-    <td class="company left" title="${r.name}">${r.name}</td>
-    <td class="sector-cell left" title="${r.sector}">${r.sector}</td>
-    <td class="right num">${fmtCap(r.market_cap_aud)}</td>
-    <td class="right num">${r.vol_ratio.toFixed(2)}×</td>
-    <td class="right num">${fmtPct(r.abnormal_drift)}</td>
-    <td class="right num">${fmtRet(r.cum_ret_pct)}</td>
-    <td class="right num ${r.days_since_material===null?'neu':''}">${r.days_since_material===null?'—':r.days_since_material}</td>
-    <td class="right num neu">${r.score.toFixed(3)}</td>
-  </tr>`).join('');
-}
-
-// ── Mobile card render ─────────────────────────────────────────────────────
-function renderCards() {
-  const rows      = getSorted();
-  const container = document.getElementById('cards-container');
-  const emptyEl   = document.getElementById('empty-cards');
-
-  [...container.children].forEach(el => { if (el !== emptyEl) el.remove(); });
-
-  if (!rows.length) { emptyEl.style.display = ''; return; }
-  emptyEl.style.display = 'none';
-
-  const frag = document.createDocumentFragment();
-  rows.forEach(r => {
-    const div = document.createElement('div');
-    div.className = 'stock-card';
-    const driftStr = (r.abnormal_drift >= 0 ? '+' : '') + (r.abnormal_drift*100).toFixed(1) + '%';
-    const retStr   = (r.cum_ret_pct   >= 0 ? '+' : '') + r.cum_ret_pct.toFixed(1) + '%';
-    div.innerHTML = `
-      <div class="card-top">
-        ${tierBadge(r.tier_label)}
-        <a class="card-ticker" href="${r.asx_url||'#'}" target="_blank">${r.ticker}</a>
-        <span class="card-score neu">${r.score.toFixed(3)}</span>
-      </div>
-      <div class="card-company" title="${r.name}">${r.name}<span class="neu" style="font-size:10px"> · ${r.sector}</span></div>
-      <div class="card-divider"></div>
-      <div class="card-metrics">
-        <div class="card-metric">
-          <span class="card-metric-label">Vol Ratio</span>
-          <span class="card-metric-value">${r.vol_ratio.toFixed(2)}×</span>
-        </div>
-        <div class="card-metric">
-          <span class="card-metric-label">Drift</span>
-          <span class="card-metric-value ${colorClass(r.abnormal_drift)}">${driftStr}</span>
-        </div>
-        <div class="card-metric">
-          <span class="card-metric-label">Ret</span>
-          <span class="card-metric-value ${colorClass(r.cum_ret_pct)}">${retStr}</span>
-        </div>
-        <div class="card-metric">
-          <span class="card-metric-label">Mkt Cap</span>
-          <span class="card-metric-value">${fmtCapPlain(r.market_cap_aud)}</span>
-        </div>
-        <div class="card-metric">
-          <span class="card-metric-label">Days Clean</span>
-          <span class="card-metric-value ${r.days_since_material===null?'neu':''}">${r.days_since_material===null?'—':r.days_since_material}</span>
-        </div>
-      </div>`;
-    frag.appendChild(div);
-  });
-  container.insertBefore(frag, emptyEl);
-}
-
-// ── Stock lookup ───────────────────────────────────────────────────────────
-function doLookup() {
-  const raw = document.getElementById('lookup-input').value.trim().toUpperCase();
-  const out = document.getElementById('lookup-result');
-  if (!raw) { out.innerHTML = ''; return; }
-
-  const r = ALL_ROWS.find(x => x.ticker === raw || x.ticker === raw.replace('.AX',''));
-  if (!r) {
-    out.innerHTML = `<span class="fail">✗ ${raw} not found in flagged stocks.</span>`;
-    return;
-  }
-
-  const vol  = parseFloat(document.getElementById('sl-vol').value);
-  const drift= parseFloat(document.getElementById('sl-drift').value) / 100;
-  const days = parseInt(document.getElementById('sl-days').value, 10);
-  const capM = parseInt(document.getElementById('sl-cap').value, 10) * 1e6;
-
-  const chk = (ok, msg) => `<span class="${ok?'pass':'fail'}">${ok?'✓':'✗'} ${msg}</span>`;
-  const na  = msg        => `<span class="na">— ${msg}</span>`;
-  const capLabel = v => v===null ? 'N/A' : v>=1e9 ? '$'+(v/1e9).toFixed(2)+'B' : '$'+(v/1e6).toFixed(1)+'M';
-
-  out.innerHTML = `<div class="lookup-card">
-    <strong>${r.ticker} — ${r.name}</strong>
-    ${chk(r.vol_ratio >= vol,        `Vol ${r.vol_ratio.toFixed(2)}× (need ${vol.toFixed(1)}×)`)}
-    ${chk(r.abnormal_drift >= drift, `Drift ${(r.abnormal_drift*100).toFixed(1)}% (need ${(drift*100).toFixed(1)}%)`)}
-    ${days > 0
-      ? (r.days_since_material !== null
-         ? chk(r.days_since_material >= days, `Days clean ${r.days_since_material} (need ≥${days})`)
-         : na('Days clean unknown'))
-      : na('Days clean filter off')}
-    ${r.market_cap_aud !== null
-      ? chk(r.market_cap_aud <= capM, `Cap ${capLabel(r.market_cap_aud)} (limit ${capLabel(capM)})`)
-      : na('Market cap unavailable')}
-    <span class="na">Tier: ${r.tier_label} | Score: ${r.score.toFixed(3)} | Ret: ${r.cum_ret_pct>=0?'+':''}${r.cum_ret_pct.toFixed(1)}%</span>
-    ${r.explained_by_headline ? `<span class="na">Ann: ${r.explained_by_headline.slice(0,90)}${r.explained_by_headline.length>90?'…':''}</span>` : ''}
-  </div>`;
-}
-
-// ── Init ───────────────────────────────────────────────────────────────────
-tryAutoLoad();
 </script>
 </body>
 </html>
