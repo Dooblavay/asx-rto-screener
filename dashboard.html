@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5">
+<title>ASX RTO Screener</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0d1117;--sur:#161b22;--bdr:#30363d;
+    --txt:#e6edf3;--mut:#8b949e;
+    --red:#f85149;--amb:#e3b341;--grn:#3fb950;--blu:#58a6ff;
+    --red-dim:rgba(248,81,73,.15);--amb-dim:rgba(227,179,65,.15);--grn-dim:rgba(63,185,80,.15);
+  }
+  body{background:var(--bg);color:var(--txt);font-family:-apple-system,'Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh;-webkit-text-size-adjust:100%}
+
+  /* ── Load screen ── */
+  #load-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:20px;padding:24px;text-align:center}
+  #load-screen h1{font-size:22px;font-weight:600}
+
+  .spinner{width:36px;height:36px;border:3px solid var(--bdr);border-top-color:var(--blu);border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  #drop-zone{
+    width:min(380px,100%);height:160px;border:2px dashed var(--bdr);border-radius:10px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+    cursor:pointer;transition:border-color .2s,background .2s;
+  }
+  #drop-zone:hover,#drop-zone.drag-over{border-color:var(--blu);background:rgba(88,166,255,.05)}
+  #drop-zone svg{opacity:.4}
+  #drop-zone span{color:var(--mut);font-size:13px}
+  #drop-zone strong{color:var(--blu);font-size:15px}
+  #file-input{display:none}
+
+  .server-hint{background:var(--sur);border:1px solid var(--bdr);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--mut);max-width:380px;text-align:left;line-height:1.7}
+  .server-hint strong{color:var(--txt);display:block;margin-bottom:4px}
+  .server-hint code{color:var(--grn);font-family:monospace;font-size:11px;display:block;word-break:break-all}
+
+  /* ── Main app ── */
+  #app{display:none;flex-direction:column;min-height:100vh}
+
+  /* Header */
+  #header{background:var(--sur);border-bottom:1px solid var(--bdr);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  #header h1{font-size:15px;font-weight:600;white-space:nowrap}
+  #header .meta{color:var(--mut);font-size:11px;display:flex;gap:10px;flex-wrap:wrap}
+  #header .meta span{white-space:nowrap}
+  #header .right-group{margin-left:auto;display:flex;gap:8px}
+  #filter-toggle{padding:7px 14px;background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--mut);font-size:12px;cursor:pointer;display:none;min-height:36px;white-space:nowrap}
+  #filter-toggle:hover,#filter-toggle.open{border-color:var(--blu);color:var(--blu)}
+
+  /* Badges row */
+  .badges{display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px;background:var(--sur);border-bottom:1px solid var(--bdr)}
+  .badge{padding:5px 12px;border-radius:99px;font-size:12px;font-weight:600;cursor:pointer;border-width:1px;border-style:solid;min-height:36px;display:inline-flex;align-items:center;transition:opacity .15s}
+  .badge:hover{opacity:.75}
+  .badge.active{outline:2px solid var(--blu);outline-offset:1px}
+  .b-red{background:var(--red-dim);color:var(--red);border-color:rgba(248,81,73,.3)}
+  .b-amb{background:var(--amb-dim);color:var(--amb);border-color:rgba(227,179,65,.3)}
+  .b-grn{background:var(--grn-dim);color:var(--grn);border-color:rgba(63,185,80,.3)}
+  .b-mut{background:rgba(139,148,158,.1);color:var(--mut);border-color:rgba(139,148,158,.2)}
+
+  /* Filter panel */
+  #filters{background:var(--sur);border-bottom:1px solid var(--bdr);padding:14px 16px;display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;transition:none}
+  #filters.collapsed{display:none}
+  .filter-group{display:flex;flex-direction:column;gap:6px;min-width:130px;flex:1}
+  .filter-group label{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;display:flex;justify-content:space-between}
+  .filter-group label span{color:var(--txt);font-weight:600}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:var(--bdr);border-radius:3px;outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--blu);cursor:pointer}
+  #filter-count{font-size:13px;color:var(--mut);white-space:nowrap;align-self:flex-end}
+  #filter-count strong{color:var(--txt)}
+  #reset-btn{padding:8px 16px;background:transparent;border:1px solid var(--bdr);border-radius:6px;color:var(--mut);font-size:12px;cursor:pointer;min-height:36px;white-space:nowrap;align-self:flex-end}
+  #reset-btn:hover{border-color:var(--blu);color:var(--blu)}
+
+  /* Lookup */
+  #lookup-bar{background:var(--sur);border-bottom:1px solid var(--bdr);padding:10px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  #lookup-bar label{font-size:12px;color:var(--mut);white-space:nowrap}
+  #lookup-input{padding:8px 12px;background:var(--bg);border:1px solid var(--bdr);border-radius:6px;color:var(--txt);font-size:14px;width:100px;text-transform:uppercase;min-height:40px}
+  #lookup-input:focus{outline:none;border-color:var(--blu)}
+  #lookup-btn{padding:8px 16px;background:var(--blu);border:none;border-radius:6px;color:#000;font-size:13px;font-weight:600;cursor:pointer;min-height:40px}
+  #lookup-result{font-size:12px;flex:1;min-width:100%}
+  .lookup-card{background:var(--bg);border:1px solid var(--bdr);border-radius:8px;padding:10px 16px;display:flex;flex-wrap:wrap;gap:6px 20px;align-items:baseline;margin-top:8px}
+  .lookup-card strong{font-size:13px;color:var(--txt);width:100%}
+  .pass{color:var(--grn)} .fail{color:var(--red)} .na{color:var(--mut)}
+
+  /* ── Desktop table ── */
+  #table-container{padding:16px;overflow-x:auto;flex:1}
+  table{width:100%;border-collapse:collapse}
+  thead th{
+    background:var(--sur);color:var(--mut);font-size:11px;text-transform:uppercase;
+    letter-spacing:.05em;padding:8px 10px;border-bottom:1px solid var(--bdr);
+    white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0;z-index:1;
+  }
+  thead th.left{text-align:left} thead th.right{text-align:right}
+  thead th:hover{color:var(--txt)}
+  thead th.sort-asc::after{content:" ▲";opacity:.5}
+  thead th.sort-desc::after{content:" ▼";opacity:.5}
+  tbody tr{border-bottom:1px solid rgba(48,54,61,.5);transition:background .1s}
+  tbody tr:hover{background:rgba(255,255,255,.03)}
+  td{padding:8px 10px;vertical-align:middle;white-space:nowrap}
+  td.left{text-align:left} td.right{text-align:right}
+  td.ticker a{color:var(--blu);text-decoration:none;font-weight:600;font-size:13px}
+  td.ticker a:hover{text-decoration:underline}
+  td.company{max-width:180px;overflow:hidden;text-overflow:ellipsis;color:var(--mut);font-size:12px}
+  td.sector-cell{max-width:120px;overflow:hidden;text-overflow:ellipsis;color:var(--mut);font-size:11px}
+  td.num{font-variant-numeric:tabular-nums}
+  .pos{color:var(--grn)} .neg{color:var(--red)} .neu{color:var(--mut)}
+  .tier-badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;min-width:80px;text-align:center}
+  .t-red{background:var(--red-dim);color:var(--red)}
+  .t-amb{background:var(--amb-dim);color:var(--amb)}
+  .t-grn{background:var(--grn-dim);color:var(--grn)}
+  .t-mut{background:rgba(139,148,158,.1);color:var(--mut)}
+  #empty-msg{text-align:center;padding:60px 0;color:var(--mut);font-size:14px}
+
+  /* ── Mobile cards ── */
+  #cards-container{display:none;padding:10px 12px;flex-direction:column;gap:10px;flex:1}
+  .stock-card{background:var(--sur);border:1px solid var(--bdr);border-radius:12px;padding:14px}
+  .card-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .card-ticker{font-size:19px;font-weight:700;color:var(--blu);text-decoration:none;flex:1;line-height:1}
+  .card-score{font-size:11px;color:var(--mut)}
+  .card-company{font-size:12px;color:var(--mut);margin-bottom:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card-divider{height:1px;background:var(--bdr);margin:10px 0}
+  .card-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 8px}
+  .card-metric{display:flex;flex-direction:column;gap:3px}
+  .card-metric-label{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+  .card-metric-value{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+  #empty-cards{text-align:center;padding:60px 16px;color:var(--mut);font-size:14px}
+
+  /* ── Responsive breakpoint ── */
+  @media (max-width:700px){
+    #filter-toggle{display:block}
+    #table-container{display:none}
+    #cards-container{display:flex}
+    #header .meta{gap:8px;font-size:10px}
+    #header h1{font-size:14px}
+    .badges{gap:5px;padding:8px 12px}
+    .badge{font-size:11px;padding:4px 10px;min-height:32px}
+    #lookup-input{flex:1;width:auto;min-width:80px}
+    .card-metrics{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Load screen ── -->
+<div id="load-screen">
+  <h1>ASX RTO Screener</h1>
+
+  <div id="load-status" style="display:flex;flex-direction:column;align-items:center;gap:12px">
+    <div class="spinner"></div>
+    <p style="color:var(--mut);font-size:13px">Loading screener_output.csv…</p>
+  </div>
+
+  <div id="load-fallback" style="display:none;flex-direction:column;align-items:center;gap:16px;width:100%">
+    <p style="color:var(--mut);font-size:13px;max-width:360px">
+      Could not auto-load the file. Drop it below or tap to browse.
+    </p>
+    <div id="drop-zone">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+      </svg>
+      <strong>Drop screener_output.csv here</strong>
+      <span>or tap to browse</span>
+    </div>
+    <div class="server-hint">
+      <strong>For auto-load, run once in Terminal:</strong>
+      <code>cd ~/Desktop/asx-rto-study && python3 -m http.server 8080</code>
+      Then open <code style="color:var(--blu)">http://localhost:8080/dashboard.html</code>
+      <br>On iPhone (same Wi-Fi): replace <code style="color:var(--blu)">localhost</code> with your Mac's IP.
+    </div>
+  </div>
+
+  <input type="file" id="file-input" accept=".csv">
+</div>
+
+<!-- ── Main app ── -->
+<div id="app">
+  <div id="header">
+    <h1>ASX RTO Screener</h1>
+    <div class="meta">
+      <span>Run: <strong id="hdr-date">—</strong></span>
+      <span>Screened: <strong id="hdr-screened">—</strong></span>
+      <span>Flagged: <strong id="hdr-flagged">—</strong></span>
+    </div>
+    <div class="right-group">
+      <button id="filter-toggle" onclick="toggleFilters()">Filters</button>
+    </div>
+  </div>
+
+  <div class="badges">
+    <span id="bdg-unexp" class="badge b-red" onclick="filterTier('UNEXPLAINED')"><span id="cnt-unexp">0</span> Unexplained</span>
+    <span id="bdg-uncl"  class="badge b-amb" onclick="filterTier('UNCLEAR')"><span id="cnt-uncl">0</span> Unclear</span>
+    <span id="bdg-expl"  class="badge b-grn" onclick="filterTier('EXPLAINED')"><span id="cnt-expl">0</span> Explained</span>
+    <span id="bdg-flag"  class="badge b-mut" onclick="filterTier('')"><span id="cnt-flag">0</span> All</span>
+  </div>
+
+  <div id="filters">
+    <div class="filter-group">
+      <label>Min vol ratio <span id="lbl-vol">2.0×</span></label>
+      <input type="range" id="sl-vol" min="0.5" max="10" step="0.1" value="2.0" oninput="onSlider()">
+    </div>
+    <div class="filter-group">
+      <label>Min drift <span id="lbl-drift">5%</span></label>
+      <input type="range" id="sl-drift" min="0" max="50" step="1" value="5" oninput="onSlider()">
+    </div>
+    <div class="filter-group">
+      <label>Min days clean <span id="lbl-days">0</span></label>
+      <input type="range" id="sl-days" min="0" max="180" step="5" value="0" oninput="onSlider()">
+    </div>
+    <div class="filter-group">
+      <label>Max mkt cap <span id="lbl-cap">$50M</span></label>
+      <input type="range" id="sl-cap" min="1" max="200" step="1" value="50" oninput="onSlider()">
+    </div>
+    <div id="filter-count">Showing <strong id="showing-n">—</strong></div>
+    <button id="reset-btn" onclick="resetFilters()">Reset</button>
+  </div>
+
+  <div id="lookup-bar">
+    <label>Lookup:</label>
+    <input type="text" id="lookup-input" placeholder="e.g. AON" maxlength="6"
+           onkeydown="if(event.key==='Enter')doLookup()"
+           autocapitalize="characters" autocorrect="off" autocomplete="off">
+    <button id="lookup-btn" onclick="doLookup()">Go</button>
+    <div id="lookup-result"></div>
+  </div>
+
+  <!-- Desktop table -->
+  <div id="table-container">
+    <table id="main-table">
+      <thead>
+        <tr>
+          <th class="left"  data-key="tier_num">Tier</th>
+          <th class="left"  data-key="ticker">Ticker</th>
+          <th class="left"  data-key="name">Company</th>
+          <th class="left"  data-key="sector">Sector</th>
+          <th class="right" data-key="market_cap_aud">Mkt Cap</th>
+          <th class="right" data-key="vol_ratio">Vol Ratio</th>
+          <th class="right" data-key="abnormal_drift">Drift %</th>
+          <th class="right" data-key="cum_ret_pct">Ret %</th>
+          <th class="right" data-key="days_since_material">Days Clean</th>
+          <th class="right" data-key="score">Score</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+    <div id="empty-msg" style="display:none">No stocks match the current filters.</div>
+  </div>
+
+  <!-- Mobile cards -->
+  <div id="cards-container">
+    <div id="empty-cards" style="display:none">No stocks match the current filters.</div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* @@BAKED_CSV_START@@ */
+var BAKED_CSV = null;
+/* @@BAKED_CSV_END@@ */
+
+let ALL_ROWS    = [];
+let FILTERED    = [];
+let SORT_KEY    = 'score';
+let SORT_ASC    = false;
+let TIER_FILTER = '';
+let FILTERS_OPEN = true;
+
+// ── CSV Parser ──────────────────────────────────────────────────────────────
+function parseLine(line) {
+  const fields = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) {
+      fields.push(cur); cur = '';
+    } else cur += c;
+  }
+  fields.push(cur);
+  return fields;
+}
+
+function num(v) {
+  if (v === undefined || v === null || v === '' || v === 'nan') return null;
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
+const TS_RE    = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/;
+const TIER_SET = new Set(['UNEXPLAINED','UNCLEAR','EXPLAINED']);
+
+function parseCSV(text) {
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  if (!lines.length) return { rows:[], ts:'' };
+
+  const headers = parseLine(lines[0]);
+  const col = {};
+  headers.forEach((h, i) => { col[h.trim()] = i; });
+
+  function get(row, name) {
+    const i = col[name];
+    return i !== undefined ? (row[i] || '').trim() : '';
+  }
+
+  function scanTS(row) {
+    const byName = get(row, 'run_timestamp');
+    if (TS_RE.test(byName)) return byName;
+    for (const v of row) { const s=(v||'').trim(); if (TS_RE.test(s)) return s; }
+    return '';
+  }
+
+  function scanLabel(row) {
+    const byName = get(row, 'explanation_label');
+    if (TIER_SET.has(byName)) return byName;
+    for (const v of row) { const s=(v||'').trim(); if (TIER_SET.has(s)) return s; }
+    return '';
+  }
+
+  const rows = [];
+  for (let li = 1; li < lines.length; li++) {
+    if (!lines[li].trim()) continue;
+    const row = parseLine(lines[li]);
+
+    if (get(row,'flagged') !== 'True') continue;
+
+    const label   = scanLabel(row);
+    const tierRaw = num(get(row,'tier'));
+    let tierLabel;
+    if      (label === 'UNEXPLAINED') tierLabel = 'UNEXPLAINED';
+    else if (label === 'UNCLEAR')     tierLabel = 'UNCLEAR';
+    else if (label === 'EXPLAINED')   tierLabel = 'EXPLAINED';
+    else if (tierRaw === 0)           tierLabel = 'UNEXPLAINED';
+    else if (tierRaw === 1)           tierLabel = 'UNCLEAR';
+    else if (tierRaw === 2)           tierLabel = 'EXPLAINED';
+    else                              tierLabel = 'FLAGGED';
+
+    const tierNum = {UNEXPLAINED:0,UNCLEAR:1,EXPLAINED:2,FLAGGED:3}[tierLabel];
+    const capRaw  = get(row,'market_cap_aud');
+    const daysRaw = get(row,'days_since_material');
+
+    rows.push({
+      ticker:               get(row,'ticker'),
+      name:                 get(row,'name'),
+      sector:               get(row,'sector'),
+      asx_url:              get(row,'asx_url'),
+      vol_ratio:            num(get(row,'vol_ratio'))      ?? 0,
+      abnormal_drift:       num(get(row,'abnormal_drift')) ?? 0,
+      cum_ret_pct:          num(get(row,'cum_ret_pct'))    ?? 0,
+      score:                num(get(row,'score'))          ?? 0,
+      market_cap_aud:       (capRaw  && capRaw  !== 'nan') ? num(capRaw)  : null,
+      days_since_material:  (daysRaw && daysRaw !== 'nan') ? (parseInt(daysRaw,10)||null) : null,
+      tier_label:           tierLabel,
+      tier_num:             tierNum,
+      run_ts:               scanTS(row),
+      explained_by_headline: get(row,'explained_by_headline'),
+      ann_api_note:         get(row,'ann_api_note'),
+    });
+  }
+
+  const allTS = rows.map(r=>r.run_ts).filter(Boolean);
+  const maxTS = allTS.length ? allTS.reduce((a,b)=>a>b?a:b) : '';
+  const latest = maxTS ? rows.filter(r=>r.run_ts===maxTS) : rows;
+  return { rows: latest, ts: maxTS };
+}
+
+// ── Auto-load ──────────────────────────────────────────────────────────────
+async function tryAutoLoad() {
+  // 1. Data baked in by screener.py (GitHub Pages / no server needed)
+  if (typeof BAKED_CSV === 'string' && BAKED_CSV.length > 0) {
+    loadData(BAKED_CSV);
+    return;
+  }
+  // 2. Try fetch when served locally (python -m http.server)
+  try {
+    const resp = await fetch('./screener_output.csv');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const text = await resp.text();
+    loadData(text);
+  } catch(e) {
+    // 3. Fall back to manual file picker
+    document.getElementById('load-status').style.display = 'none';
+    document.getElementById('load-fallback').style.display = 'flex';
+  }
+}
+
+// ── Data loading ──────────────────────────────────────────────────────────
+function loadData(text) {
+  const { rows, ts } = parseCSV(text);
+  ALL_ROWS = rows;
+
+  document.getElementById('load-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  document.getElementById('hdr-date').textContent     = ts || '—';
+  document.getElementById('hdr-screened').textContent = '—';
+  document.getElementById('hdr-flagged').textContent  = rows.length;
+
+  const n0 = rows.filter(r=>r.tier_label==='UNEXPLAINED').length;
+  const n1 = rows.filter(r=>r.tier_label==='UNCLEAR').length;
+  const n2 = rows.filter(r=>r.tier_label==='EXPLAINED').length;
+  document.getElementById('cnt-unexp').textContent = n0;
+  document.getElementById('cnt-uncl').textContent  = n1;
+  document.getElementById('cnt-expl').textContent  = n2;
+  document.getElementById('cnt-flag').textContent  = rows.length;
+
+  applyFilters();
+}
+
+// File-picker fallback
+document.getElementById('drop-zone').addEventListener('click', ()=>
+  document.getElementById('file-input').click());
+
+document.getElementById('file-input').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const fr = new FileReader();
+  fr.onload = ev => loadData(ev.target.result);
+  fr.readAsText(f);
+});
+
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', ()=> dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (!f) return;
+  const fr = new FileReader();
+  fr.onload = ev => loadData(ev.target.result);
+  fr.readAsText(f);
+});
+
+// ── Filter toggle (mobile) ─────────────────────────────────────────────────
+function toggleFilters() {
+  FILTERS_OPEN = !FILTERS_OPEN;
+  document.getElementById('filters').classList.toggle('collapsed', !FILTERS_OPEN);
+  const btn = document.getElementById('filter-toggle');
+  btn.textContent = FILTERS_OPEN ? 'Hide Filters' : 'Filters';
+  btn.classList.toggle('open', FILTERS_OPEN);
+}
+
+// ── Sliders ────────────────────────────────────────────────────────────────
+function onSlider() {
+  const vol   = parseFloat(document.getElementById('sl-vol').value);
+  const drift = parseFloat(document.getElementById('sl-drift').value);
+  const days  = parseInt(document.getElementById('sl-days').value, 10);
+  const cap   = parseInt(document.getElementById('sl-cap').value, 10);
+  document.getElementById('lbl-vol').textContent   = vol.toFixed(1) + '×';
+  document.getElementById('lbl-drift').textContent = drift + '%';
+  document.getElementById('lbl-days').textContent  = days;
+  document.getElementById('lbl-cap').textContent   = '$' + cap + 'M';
+  applyFilters();
+}
+
+function resetFilters() {
+  document.getElementById('sl-vol').value   = '2.0';
+  document.getElementById('sl-drift').value = '5';
+  document.getElementById('sl-days').value  = '0';
+  document.getElementById('sl-cap').value   = '50';
+  TIER_FILTER = '';
+  updateBadgeActive();
+  onSlider();
+}
+
+function filterTier(t) {
+  TIER_FILTER = (TIER_FILTER === t) ? '' : t;
+  updateBadgeActive();
+  applyFilters();
+}
+
+function updateBadgeActive() {
+  ['bdg-unexp','bdg-uncl','bdg-expl','bdg-flag'].forEach((id,i) => {
+    const lbl = ['UNEXPLAINED','UNCLEAR','EXPLAINED',''][i];
+    document.getElementById(id).classList.toggle('active', TIER_FILTER === lbl);
+  });
+}
+
+// ── Filter ─────────────────────────────────────────────────────────────────
+function applyFilters() {
+  const vol   = parseFloat(document.getElementById('sl-vol').value);
+  const drift = parseFloat(document.getElementById('sl-drift').value) / 100;
+  const days  = parseInt(document.getElementById('sl-days').value, 10);
+  const capM  = parseInt(document.getElementById('sl-cap').value, 10) * 1e6;
+
+  FILTERED = ALL_ROWS.filter(r => {
+    if (r.vol_ratio < vol)        return false;
+    if (r.abnormal_drift < drift) return false;
+    if (days > 0 && r.days_since_material !== null && r.days_since_material < days) return false;
+    if (r.market_cap_aud !== null && r.market_cap_aud > capM) return false;
+    if (TIER_FILTER && r.tier_label !== TIER_FILTER)          return false;
+    return true;
+  });
+
+  document.getElementById('showing-n').textContent = FILTERED.length;
+  renderTable();
+  renderCards();
+}
+
+// ── Sort ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('#main-table thead th[data-key]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.key;
+    if (SORT_KEY === key) SORT_ASC = !SORT_ASC;
+    else { SORT_KEY = key; SORT_ASC = false; }
+    document.querySelectorAll('#main-table thead th').forEach(h => h.classList.remove('sort-asc','sort-desc'));
+    th.classList.add(SORT_ASC ? 'sort-asc' : 'sort-desc');
+    applyFilters();
+  });
+});
+document.querySelector('[data-key="score"]').classList.add('sort-desc');
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function getSorted() {
+  const dir = SORT_ASC ? 1 : -1;
+  return [...FILTERED].sort((a, b) => {
+    let av = a[SORT_KEY], bv = b[SORT_KEY];
+    if (av === null || av === undefined) av = dir > 0 ?  Infinity : -Infinity;
+    if (bv === null || bv === undefined) bv = dir > 0 ?  Infinity : -Infinity;
+    if (typeof av === 'string') return dir * av.localeCompare(bv);
+    return dir * (av - bv);
+  });
+}
+
+function fmtCap(v) {
+  if (v === null) return '<span class="neu">N/A</span>';
+  return v >= 1e9 ? '$'+(v/1e9).toFixed(2)+'B' : '$'+(v/1e6).toFixed(1)+'M';
+}
+function fmtCapPlain(v) {
+  if (v === null) return 'N/A';
+  return v >= 1e9 ? '$'+(v/1e9).toFixed(2)+'B' : '$'+(v/1e6).toFixed(1)+'M';
+}
+function fmtPct(v) {
+  const s = (v >= 0 ? '+' : '') + (v*100).toFixed(1) + '%';
+  return `<span class="${v>0?'pos':v<0?'neg':'neu'}">${s}</span>`;
+}
+function fmtRet(v) {
+  const s = (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+  return `<span class="${v>0?'pos':v<0?'neg':'neu'}">${s}</span>`;
+}
+function colorClass(v) { return v > 0 ? 'pos' : v < 0 ? 'neg' : 'neu'; }
+function tierBadge(lbl) {
+  const m = {UNEXPLAINED:['t-red','UNEXPLAINED'],UNCLEAR:['t-amb','UNCLEAR'],
+             EXPLAINED:['t-grn','EXPLAINED'],FLAGGED:['t-mut','FLAGGED']};
+  const [cls,txt] = m[lbl] || ['t-mut',lbl];
+  return `<span class="tier-badge ${cls}">${txt}</span>`;
+}
+
+// ── Desktop render ─────────────────────────────────────────────────────────
+function renderTable() {
+  const rows  = getSorted();
+  const tbody = document.getElementById('table-body');
+  const empty = document.getElementById('empty-msg');
+
+  if (!rows.length) { tbody.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td class="left">${tierBadge(r.tier_label)}</td>
+    <td class="ticker left"><a href="${r.asx_url||'#'}" target="_blank">${r.ticker}</a></td>
+    <td class="company left" title="${r.name}">${r.name}</td>
+    <td class="sector-cell left" title="${r.sector}">${r.sector}</td>
+    <td class="right num">${fmtCap(r.market_cap_aud)}</td>
+    <td class="right num">${r.vol_ratio.toFixed(2)}×</td>
+    <td class="right num">${fmtPct(r.abnormal_drift)}</td>
+    <td class="right num">${fmtRet(r.cum_ret_pct)}</td>
+    <td class="right num ${r.days_since_material===null?'neu':''}">${r.days_since_material===null?'—':r.days_since_material}</td>
+    <td class="right num neu">${r.score.toFixed(3)}</td>
+  </tr>`).join('');
+}
+
+// ── Mobile card render ─────────────────────────────────────────────────────
+function renderCards() {
+  const rows      = getSorted();
+  const container = document.getElementById('cards-container');
+  const emptyEl   = document.getElementById('empty-cards');
+
+  [...container.children].forEach(el => { if (el !== emptyEl) el.remove(); });
+
+  if (!rows.length) { emptyEl.style.display = ''; return; }
+  emptyEl.style.display = 'none';
+
+  const frag = document.createDocumentFragment();
+  rows.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'stock-card';
+    const driftStr = (r.abnormal_drift >= 0 ? '+' : '') + (r.abnormal_drift*100).toFixed(1) + '%';
+    const retStr   = (r.cum_ret_pct   >= 0 ? '+' : '') + r.cum_ret_pct.toFixed(1) + '%';
+    div.innerHTML = `
+      <div class="card-top">
+        ${tierBadge(r.tier_label)}
+        <a class="card-ticker" href="${r.asx_url||'#'}" target="_blank">${r.ticker}</a>
+        <span class="card-score neu">${r.score.toFixed(3)}</span>
+      </div>
+      <div class="card-company" title="${r.name}">${r.name}<span class="neu" style="font-size:10px"> · ${r.sector}</span></div>
+      <div class="card-divider"></div>
+      <div class="card-metrics">
+        <div class="card-metric">
+          <span class="card-metric-label">Vol Ratio</span>
+          <span class="card-metric-value">${r.vol_ratio.toFixed(2)}×</span>
+        </div>
+        <div class="card-metric">
+          <span class="card-metric-label">Drift</span>
+          <span class="card-metric-value ${colorClass(r.abnormal_drift)}">${driftStr}</span>
+        </div>
+        <div class="card-metric">
+          <span class="card-metric-label">Ret</span>
+          <span class="card-metric-value ${colorClass(r.cum_ret_pct)}">${retStr}</span>
+        </div>
+        <div class="card-metric">
+          <span class="card-metric-label">Mkt Cap</span>
+          <span class="card-metric-value">${fmtCapPlain(r.market_cap_aud)}</span>
+        </div>
+        <div class="card-metric">
+          <span class="card-metric-label">Days Clean</span>
+          <span class="card-metric-value ${r.days_since_material===null?'neu':''}">${r.days_since_material===null?'—':r.days_since_material}</span>
+        </div>
+      </div>`;
+    frag.appendChild(div);
+  });
+  container.insertBefore(frag, emptyEl);
+}
+
+// ── Stock lookup ───────────────────────────────────────────────────────────
+function doLookup() {
+  const raw = document.getElementById('lookup-input').value.trim().toUpperCase();
+  const out = document.getElementById('lookup-result');
+  if (!raw) { out.innerHTML = ''; return; }
+
+  const r = ALL_ROWS.find(x => x.ticker === raw || x.ticker === raw.replace('.AX',''));
+  if (!r) {
+    out.innerHTML = `<span class="fail">✗ ${raw} not found in flagged stocks.</span>`;
+    return;
+  }
+
+  const vol  = parseFloat(document.getElementById('sl-vol').value);
+  const drift= parseFloat(document.getElementById('sl-drift').value) / 100;
+  const days = parseInt(document.getElementById('sl-days').value, 10);
+  const capM = parseInt(document.getElementById('sl-cap').value, 10) * 1e6;
+
+  const chk = (ok, msg) => `<span class="${ok?'pass':'fail'}">${ok?'✓':'✗'} ${msg}</span>`;
+  const na  = msg        => `<span class="na">— ${msg}</span>`;
+  const capLabel = v => v===null ? 'N/A' : v>=1e9 ? '$'+(v/1e9).toFixed(2)+'B' : '$'+(v/1e6).toFixed(1)+'M';
+
+  out.innerHTML = `<div class="lookup-card">
+    <strong>${r.ticker} — ${r.name}</strong>
+    ${chk(r.vol_ratio >= vol,        `Vol ${r.vol_ratio.toFixed(2)}× (need ${vol.toFixed(1)}×)`)}
+    ${chk(r.abnormal_drift >= drift, `Drift ${(r.abnormal_drift*100).toFixed(1)}% (need ${(drift*100).toFixed(1)}%)`)}
+    ${days > 0
+      ? (r.days_since_material !== null
+         ? chk(r.days_since_material >= days, `Days clean ${r.days_since_material} (need ≥${days})`)
+         : na('Days clean unknown'))
+      : na('Days clean filter off')}
+    ${r.market_cap_aud !== null
+      ? chk(r.market_cap_aud <= capM, `Cap ${capLabel(r.market_cap_aud)} (limit ${capLabel(capM)})`)
+      : na('Market cap unavailable')}
+    <span class="na">Tier: ${r.tier_label} | Score: ${r.score.toFixed(3)} | Ret: ${r.cum_ret_pct>=0?'+':''}${r.cum_ret_pct.toFixed(1)}%</span>
+    ${r.explained_by_headline ? `<span class="na">Ann: ${r.explained_by_headline.slice(0,90)}${r.explained_by_headline.length>90?'…':''}</span>` : ''}
+  </div>`;
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+tryAutoLoad();
+</script>
+</body>
+</html>
