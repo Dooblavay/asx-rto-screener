@@ -929,7 +929,7 @@ def bake_dashboard(results: pd.DataFrame, ts: str) -> None:
     html = DASHBOARD_HTML.read_text(encoding="utf-8")
     html = re.sub(
         r"/\* @@BAKED_CSV_START@@ \*/.*?/\* @@BAKED_CSV_END@@ \*/",
-        replacement,
+        lambda _: replacement,   # lambda prevents re from interpreting \n in replacement
         html,
         flags=re.DOTALL,
     )
